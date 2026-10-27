@@ -8,7 +8,6 @@
 
 출력: <out>/<case>_viewer/  (저장소 밖. 영상이므로 맥 판독 폴더 밖으로 옮기지 않는다)
   ct·suv·mask.nii.gz, candidates.json(후보 번호·RAS 좌표), open_in_slicer.py
-  그리고 <out>/<case>_Slicer열기.command (맥 Finder 에서 더블클릭하면 이 폴더의 open_in_slicer.py 로 Slicer 가 열린다)
   구조 라벨이 있으면 labels.nii.gz(라벨 번호는 섞이면 안 되므로 묶을 때 가운데 복셀을 그대로 쓴다)와 이름표 labels.ctbl
   (맥 판독 폴더로 보내는 예외, data-governance.md §2)
 Slicer 에서 찍은 점은 Slicer 가 같은 폴더의 slicer_points.csv 에 쓴다(맥에서만 생긴다).
@@ -43,10 +42,12 @@ def label_colors(n):
 
 
 SLICER_SCRIPT = r'''# 3D Slicer 로 이 폴더의 영상을 연다(make_review_html.py 가 만든 파일, 고치지 않는다).
-# 보통은 판독 폴더의 <case>_Slicer열기.command 를 Finder 에서 더블클릭해 연다. 터미널로 열 때:
-#   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
-# 누락 병변: P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓴다(페이지에서 파일로 고른다).
-# 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. L 키로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+# 보통은 판독 페이지의 "Slicer 로 보기"(petreview:// 연결 앱 → 맥의 petreview.sh slicer <case>)가 연다. 터미널로 열 때:
+#   petreview.sh slicer <case>   또는   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
+# 누락 병변: 도구막대 "누락 병변 찍기"(P)로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓰고
+#   콘솔에 "[PET-CT] … 저장" 을 찍는다(페이지에서 파일로 고른다). Slicer 기본 점 찍기 버튼으로 찍어도 같은 목록에 들어간다.
+# 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. 도구막대 "구조 색"(L)으로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+# 3D 칸에는 SUV 를 MIP 로 그리고 병변(빨강)을 겹친다.
 import csv
 import json
 import os
@@ -86,6 +87,23 @@ if os.path.exists(f("labels.nii.gz")):
 slicer.util.setSliceViewerLayers(background=ct, foreground=suv, foregroundOpacity=0.5, label=lab, labelOpacity=0.0)
 slicer.app.layoutManager().setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
 lesion.CreateClosedSurfaceRepresentation()
+
+# 3D 칸: SUV 를 MIP(최대 강도 투영)로 그린다. 창은 단면과 같은 SUV 0–__SUV_MAX__
+try:
+    vr = slicer.modules.volumerendering.logic()
+    vr_display = vr.CreateDefaultVolumeRenderingNodes(suv)
+    vr_display.GetVolumePropertyNode().Copy(vr.GetPresetByName("MR-MIP"))
+    vol_prop = vr_display.GetVolumePropertyNode().GetVolumeProperty()
+    opacity = vtk.vtkPiecewiseFunction()
+    opacity.AddPoint(0, 0.0)
+    opacity.AddPoint(__SUV_MAX__ * k, 1.0)
+    vol_prop.SetScalarOpacity(opacity)
+    vr_display.SetVisibility(True)
+    view_node = slicer.app.layoutManager().threeDWidget(0).mrmlViewNode()
+    view_node.SetRaycastTechnique(slicer.vtkMRMLViewNode.MaximumIntensityProjection)
+except Exception as e:   # 3D 가 안 떠도 단면 판독·점 찍기는 그대로 되게
+    print("[PET-CT] 3D 보기를 켜지 못했다:", e)
+slicer.util.resetThreeDViews()
 
 # 후보 번호: 페이지 카드 번호(기록 #). 잠가 둔다
 cands = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "후보")
@@ -128,6 +146,7 @@ def save_points(*_):
         w = csv.writer(fh)
         w.writerow(["case", "n", "x", "y", "z", "structure"])
         w.writerows(rows)
+    print(f"[PET-CT] {CASE} 누락 병변 점 {len(rows)}개 저장 -> {POINTS}")
 
 
 # 기존 점 파일은 좌표와 구조 이름을 그대로 두고 case 열만 추가한다.
@@ -147,54 +166,56 @@ for ev in (slicer.vtkMRMLMarkupsNode.PointPositionDefinedEvent, slicer.vtkMRMLMa
            slicer.vtkMRMLMarkupsNode.PointRemovedEvent):
     added.AddObserver(ev, save_points)
 
-# P 키: 누락 병변 점 찍기 켜기/끄기
+# 도구막대 "PET-CT 판독": 누락 병변 찍기(P)·구조 색(L). 단면 창이 키를 먼저 가져가므로 QShortcut 대신 도구막대 동작에 단축키를 건다
 selection = slicer.app.applicationLogic().GetSelectionNode()
 interaction = slicer.app.applicationLogic().GetInteractionNode()
+selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+selection.SetActivePlaceNodeID(added.GetID())     # Slicer 기본 점 찍기 버튼도 "누락 병변" 에 찍게
 
 
-def toggle_place():
-    if interaction.GetCurrentInteractionMode() == interaction.Place:
+def set_place(on):
+    if on:   # 선·각도 등 다른 Markups 를 쓴 뒤에도 "누락 병변" 에 찍히도록 클래스와 노드를 함께 되돌린다
+        selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+        selection.SetActivePlaceNodeID(added.GetID())
+        interaction.SetPlaceModePersistence(1)
+        interaction.SetCurrentInteractionMode(interaction.Place)
+    else:
         interaction.SetCurrentInteractionMode(interaction.ViewTransform)
-        return
-    selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    selection.SetActivePlaceNodeID(added.GetID())
-    interaction.SetPlaceModePersistence(1)
-    interaction.SetCurrentInteractionMode(interaction.Place)
 
 
-place_key = qt.QShortcut(qt.QKeySequence("P"), slicer.util.mainWindow())
-place_key.connect("activated()", toggle_place)
-
-# L 키: 구조 라벨 색 켜기/끄기(처음에는 꺼 둠)
-def toggle_labels():
+def set_labels(on):
     if lab is None:
         return
     for name in slicer.app.layoutManager().sliceViewNames():
-        comp = slicer.app.layoutManager().sliceWidget(name).sliceLogic().GetSliceCompositeNode()
-        comp.SetLabelOpacity(0.0 if comp.GetLabelOpacity() > 0 else 0.4)
+        slicer.app.layoutManager().sliceWidget(name).sliceLogic().GetSliceCompositeNode().SetLabelOpacity(0.4 if on else 0.0)
 
 
-label_key = qt.QShortcut(qt.QKeySequence("L"), slicer.util.mainWindow())
-label_key.connect("activated()", toggle_labels)
+toolbar = slicer.util.mainWindow().addToolBar("PET-CT 판독")
+place_action = toolbar.addAction("누락 병변 찍기 (P)")
+label_action = toolbar.addAction("구조 색 (L)")
+for action, key, slot in ((place_action, "P", set_place), (label_action, "L", set_labels)):
+    action.setCheckable(True)
+    action.setShortcut(qt.QKeySequence(key))
+    action.setShortcutContext(qt.Qt.ApplicationShortcut)
+    action.connect("toggled(bool)", slot)
+label_action.setEnabled(lab is not None)
+
+
+def sync_place_button(*_):
+    """Esc·다른 버튼으로 점 찍기가 끝나도 도구막대 버튼 상태를 맞춘다."""
+    place_action.blockSignals(True)
+    place_action.setChecked(interaction.GetCurrentInteractionMode() == interaction.Place)
+    place_action.blockSignals(False)
+
+
+interaction.AddObserver(vtk.vtkCommand.ModifiedEvent, sync_place_button)
 if cands.GetNumberOfControlPoints():
     p0 = [0.0, 0.0, 0.0]
     cands.GetNthControlPointPositionWorld(0, p0)
     slicer.modules.markups.logic().JumpSlicesToLocation(p0[0], p0[1], p0[2], True)
-slicer.util.delayDisplay("P 키: 누락 병변 점 찍기 켜기/끄기 · L 키: 구조 라벨 색 켜기/끄기. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
+print(f"[PET-CT] {CASE} 준비 끝: 도구막대 '누락 병변 찍기 (P)'·'구조 색 (L)'. 점 파일 {POINTS}")
+slicer.util.delayDisplay("도구막대 '누락 병변 찍기 (P)' 로 점 찍기를 켜고 끈다 · '구조 색 (L)' 로 구조 라벨 색을 켜고 끈다. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
 '''
-
-
-COMMAND = """#!/bin/sh
-# __CASE__ 를 3D Slicer 로 연다(make_review_html.py 가 만든 파일). 맥 Finder 에서 더블클릭한다.
-cd "$(dirname "$0")/__CASE___viewer" || exit 1
-# 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않는다(두 창이 같은 slicer_points.csv 를 덮어쓰지 않게)
-if pgrep -f "__CASE___viewer/open_in_slicer.py" >/dev/null; then
-  echo "__CASE__ Slicer 가 이미 열려 있다. 그 창을 쓴다."
-  osascript -e 'tell application "Slicer" to activate' >/dev/null 2>&1
-  exit 0
-fi
-exec /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
-"""
 
 
 def write_labels(vdir, labels, names, f, aff):
@@ -229,9 +250,17 @@ def save(arr, aff, path, slope=None):
     nib.save(img, str(path))
 
 
-def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, names=None, ct_window=(-200, 1200), suv_max=8.0):
+def cached_ok(path, shape, aff):
+    """캐시 파일이 지금 묶음 배수로 만들 격자(shape·affine)와 같은지. 상한(max_vox)이 바뀌면 다시 만들게 한다."""
+    if not path.exists():
+        return False
+    img = nib.load(str(path))
+    return tuple(img.shape[:3]) == tuple(shape) and np.allclose(img.affine, aff, atol=1e-3)
+
+
+def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=170e6, labels=None, names=None, ct_window=(-200, 1200), suv_max=8.0):
     """Slicer 용 파일을 만들고 {"ct","suv","mask"[,"labels"]} 경로와 묶음 배수 f 를 돌려준다.
-    CT·SUV·마스크는 입력보다 새 파일이 있으면 다시 만들지 않는다. 후보 목록·Slicer 스크립트는 늘 쓴다.
+    CT·SUV·마스크는 입력보다 새롭고 지금 묶음 배수의 격자(shape·affine)와 같은 파일이 있으면 다시 만들지 않는다. 후보 목록·Slicer 스크립트는 늘 쓴다.
     cands = [{"id", "record_no", "mm"}, …] (페이지 카드 번호와 같다).
     labels 를 주면 구조 라벨·이름표를 쓰고, 주지 않으면 예전에 만든 구조 라벨 파일을 지운다(옛 분할이 맥으로 가지 않게)."""
     vdir = Path(out_dir) / f"{case}_viewer"
@@ -241,6 +270,7 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     n = int(np.prod(seg_img.shape[:3]))
     f = max(1, math.ceil((n / max_vox) ** (1 / 3)))
     aff = scaled_affine(seg_img.affine, f)
+    shape = [s // f for s in seg_img.shape[:3]]      # block_reduce 결과 크기
     vdir.mkdir(parents=True, exist_ok=True)
     script = SLICER_SCRIPT
     for k, v in (("__CT_MIN__", ct_window[0]), ("__CT_MAX__", ct_window[1]), ("__SUV_MAX__", suv_max), ("__SUV_STEP__", SUV_STEP)):
@@ -249,15 +279,13 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     for name, text in (("open_in_slicer.py", script), ("candidates.json", json.dumps(cands, ensure_ascii=False))):
         (vdir / name).write_text(text, encoding="utf-8")
         (vdir / name).chmod(0o600)
-    command = Path(out_dir) / f"{case}_Slicer열기.command"     # 맥 Finder 에서 더블클릭하면 터미널이 이 스크립트를 실행한다
-    command.write_text(COMMAND.replace("__CASE__", case), encoding="utf-8")
-    command.chmod(0o700)
+    (Path(out_dir) / f"{case}_Slicer열기.command").unlink(missing_ok=True)   # 예전 방식 파일. Slicer 는 맥의 petreview.sh 가 연다
     if labels is not None:
         paths["labels"] = write_labels(vdir, labels, names, f, aff)
     else:
         for k in ("labels.nii.gz", "labels.ctbl"):
             (vdir / k).unlink(missing_ok=True)
-    if all(p.exists() and p.stat().st_mtime > newest_in for p in paths.values()) \
+    if all(cached_ok(paths[k], shape, aff) and paths[k].stat().st_mtime > newest_in for k in ("ct", "suv", "mask")) \
             and nib.load(str(paths["suv"])).get_data_dtype() == np.int16:   # 예전 float32 SUV 파일이면 다시 만든다
         return paths, f
 

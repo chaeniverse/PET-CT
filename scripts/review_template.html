@@ -31,6 +31,7 @@ main{display:grid;grid-template-columns:600px 1fr;gap:20px;padding:20px 24px;max
 .btns button{padding:6px 12px;border:1px solid #7F7F7F;background:#fff;cursor:pointer;font-size:13px;border-radius:3px}
 .btns button.on{background:#1F3864;color:#fff;border-color:#1F3864}
 .btns button.small{padding:4px 8px;font-size:12px}
+.btns a.btn{padding:6px 12px;border:1px solid #1F3864;background:#1F3864;color:#fff;font-size:13px;border-radius:3px;text-decoration:none}
 .small{font-size:12px;color:#7F7F7F}
 #mipwrap{position:relative;display:inline-block;width:100%;cursor:pointer}
 #mipwrap img{width:100%;display:block}
@@ -60,10 +61,12 @@ td{border-bottom:1px solid #ddd;padding:4px 6px}
   <p class="small">환자 오른쪽이 화면 왼쪽. 3번에서 "누락 병변 추가"를 켜면 클릭한 위치(x, y, z mm)를 기록한다.</p>
  </div>
  <div class="panel" id="slicerpanel"><h2>2. 3D 보기 (3D Slicer)</h2>
-  <div class="btns"><button onclick="pickSlicerPoints()">Slicer 에서 찍은 점 불러오기</button><input type="file" id="slicer-file" accept=".csv" style="display:none" onchange="loadSlicerPoints(this)"></div>
+  <div class="btns"><a class="btn" href="petreview://slicer/__CASE__">Slicer 로 보기</a><button onclick="pickSlicerPoints()">Slicer 에서 찍은 점 불러오기</button><input type="file" id="slicer-file" accept=".csv" style="display:none" onchange="loadSlicerPoints(this)"></div>
   <pre id="slicer-msg"></pre>
-  <p class="small">Slicer 열기: 맥 판독 폴더(이 HTML 이 있는 폴더)에서 <code>__CASE___Slicer열기.command</code> 를 Finder 로 더블클릭한다. CT·SUV·병변(빨강)·후보 번호(남색 점, <code>카드 번호 (#기록)</code>)가 열리고, 구조 라벨 색은 L 키로 켜고 끈다.
-  Slicer 에서 P 키로 누락 병변 점 찍기를 켜고 끈다. 찍은 점은 <code>__CASE___viewer/slicer_points.csv</code> 에 바로 써지고, 위 버튼으로 그 파일을 고르면 3번 목록에 합쳐져 CSV 에 source=slicer 로 남는다.
+  <p class="small">"Slicer 로 보기" 는 맥에 PetReview 연결 앱을 한 번 만들어 두면 동작한다(결과 확인 가이드 §2-2). 처음 누를 때 Chrome 이 "PetReview.app 을 열까요?" 를 묻는다.
+  연결 앱이 없으면 맥 터미널에서 <code>petreview.sh slicer __CASE__</code> 를 실행한다. 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않는다.
+  Slicer 에는 CT·SUV·병변(빨강)·후보 번호(남색 점, <code>카드 번호 (#기록)</code>)가 4분할로, 3D 칸에는 SUV MIP 가 열린다. 도구막대 "누락 병변 찍기 (P)" 로 점 찍기를 켜고 끄고, "구조 색 (L)" 로 구조 라벨 색을 켜고 끈다.
+  찍은 점은 <code>__CASE___viewer/slicer_points.csv</code> 에 바로 써진다(Slicer 콘솔에 "[PET-CT] … 저장"). 위 버튼으로 그 파일을 고르면 3번 목록에 합쳐져 CSV 에 source=slicer 로 남는다.
   후보 위치로 가려면 Slicer 의 Markups 모듈 "후보" 목록에서 번호를 누른다.</p>
  </div>
  <div class="panel"><h2>3. 누락 병변 추가</h2>
@@ -162,7 +165,7 @@ function hl(id, on) {
   document.getElementById('card' + id).classList.toggle('hl', on);
   const m = document.getElementById('cand' + id); if (m) m.classList.toggle('hl', on);
 }
-// 3D Slicer 는 맥에서 <case>_Slicer열기.command 로 연다. 찍은 점(<case>_viewer/slicer_points.csv)은 파일 선택으로 읽는다(더블클릭으로 연 페이지는 옆 파일을 바로 읽을 수 없다)
+// 3D Slicer 는 맥의 petreview.sh 가 연다(petreview:// 연결 앱). 찍은 점(<case>_viewer/slicer_points.csv)은 파일 선택으로 읽는다(더블클릭으로 연 페이지는 옆 파일을 바로 읽을 수 없다)
 const smsg = document.getElementById('slicer-msg');
 function pickSlicerPoints() {
   if (!DATA.slicer) { smsg.textContent = 'Slicer 용 파일이 없다(--no-viewer 로 만든 페이지).'; return; }
