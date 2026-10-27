@@ -17,9 +17,9 @@
 저장소 안에는 쓰지 않으며(시도하면 멈춘다), 커밋·업로드·공유 폴더 복사를 하지 않는다.
 화면 출력은 케이스 가명과 수치뿐이다.
 
-3D 보기(3D Slicer, 맥): Slicer 용 NIfTI·후보 목록·open_in_slicer.py 를 <out>/<case>_viewer/ 에, Finder 에서 더블클릭하는
-<out>/<case>_Slicer열기.command 를 만든다(viewer_volumes.py). 페이지는 HTML 을 더블클릭해 열고, Slicer 에서 찍은 누락 병변 점은
-페이지의 파일 선택으로 불러온다. 서버는 쓰지 않고, 페이지 안에는 3D 영상을 넣지 않는다.
+3D 보기(3D Slicer, 맥): Slicer 용 NIfTI·후보 목록·open_in_slicer.py 를 <out>/<case>_viewer/ 에 만든다(viewer_volumes.py).
+페이지는 HTML 을 더블클릭해 열고, "Slicer 로 보기"(petreview:// 연결 앱 → 맥의 petreview.sh slicer)로 Slicer 를 연다.
+Slicer 에서 찍은 누락 병변 점은 페이지의 파일 선택으로 불러온다. 서버는 쓰지 않고, 페이지 안에는 3D 영상을 넣지 않는다.
 LLM 의견(llm_opinions.py):
   --llm-input-only      HTML 대신 VLM 에 줄 후보 그림(<base>/llm_input/<case>/)과 빈 의견 틀(<base>/llm/<case>_llm.json)만 만든다
   --llm-opinion <폴더>  그 폴더의 <case>_llm.json 을 카드 오른쪽에 얹는다. 주지 않으면 LLM 칸은 비운다
@@ -251,7 +251,7 @@ def main():
     ap.add_argument("--reader-ds", action="append", metavar="CASE=값", help="머리말에 표시할 판독 FL-DS (예: P01=4). 여러 번 쓸 수 있다")
     ap.add_argument("--note", action="append", metavar="CASE=문장", help="머리말에 덧붙일 메모 (예: 'P02=체중 확인 전 SUV')")
     ap.add_argument("--no-viewer", action="store_true", help="Slicer 용 파일을 만들지 않는다(페이지의 Slicer 버튼은 동작하지 않는다)")
-    ap.add_argument("--viewer-max-mvox", type=float, default=30, help="Slicer 용 영상의 최대 복셀 수(백만). 넘으면 축마다 묶어 줄인다 (기본 30)")
+    ap.add_argument("--viewer-max-mvox", type=float, default=170, help="Slicer 용 영상의 최대 복셀 수(백만). 넘으면 축마다 묶어 줄인다 (기본 170 = Vision 600 PET 440×440×842 도 원래 해상도)")
     ap.add_argument("--llm-opinion", type=Path, metavar="DIR", help="LLM 의견 폴더. 그 안의 <case>_llm.json 을 카드에 넣는다. 주지 않으면 LLM 칸은 비운다")
     ap.add_argument("--llm-input-only", action="store_true", help="HTML 대신 VLM 에 줄 후보 그림(<base>/llm_input)과 빈 의견 틀(--llm-opinion 폴더, 기본 <base>/llm)만 만든다")
     ap.add_argument("--totalseg", type=Path, metavar="DIR", help="TotalSegmentator 결과 폴더(<DIR>/<case>/seg.nii.gz, <DIR>/classes_total.json). 주면 후보에 해부 정보를 붙이고 Slicer 에 구조 라벨을 겹친다")
@@ -279,7 +279,7 @@ def main():
         print(f"\n다음: llm_review.py 로 의견을 받은 뒤 make_review_html.py ... --llm-opinion {args.llm_opinion}")
         return
     (out_dir / "review_server.py").unlink(missing_ok=True)    # 예전 방식(로컬 서버) 파일이 맥으로 가지 않게
-    print(f"\n맥 판독 폴더로 받은 뒤 {args.cases[0]}_후보확인.html 을 더블클릭해 연다. Slicer 는 {args.cases[0]}_Slicer열기.command 를 더블클릭한다.")
+    print(f"\n맥 판독 폴더로 받은 뒤(petreview.sh fetch) {args.cases[0]}_후보확인.html 을 더블클릭해 열고 'Slicer 로 보기' 를 누른다.")
 
 
 if __name__ == "__main__":

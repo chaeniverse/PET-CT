@@ -8,7 +8,6 @@
 
 출력: <out>/<case>_viewer/  (저장소 밖. 영상이므로 맥 판독 폴더 밖으로 옮기지 않는다)
   ct·suv·mask.nii.gz, candidates.json(후보 번호·RAS 좌표), open_in_slicer.py
-  그리고 <out>/<case>_Slicer열기.command (맥 Finder 에서 더블클릭하면 이 폴더의 open_in_slicer.py 로 Slicer 가 열린다)
   구조 라벨이 있으면 labels.nii.gz(라벨 번호는 섞이면 안 되므로 묶을 때 가운데 복셀을 그대로 쓴다)와 이름표 labels.ctbl
   (맥 판독 폴더로 보내는 예외, data-governance.md §2)
 Slicer 에서 찍은 점은 Slicer 가 같은 폴더의 slicer_points.csv 에 쓴다(맥에서만 생긴다).
@@ -43,8 +42,8 @@ def label_colors(n):
 
 
 SLICER_SCRIPT = r'''# 3D Slicer 로 이 폴더의 영상을 연다(make_review_html.py 가 만든 파일, 고치지 않는다).
-# 보통은 판독 폴더의 <case>_Slicer열기.command 를 Finder 에서 더블클릭해 연다. 터미널로 열 때:
-#   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
+# 보통은 판독 페이지의 "Slicer 로 보기"(petreview:// 연결 앱 → 맥의 petreview.sh slicer <case>)가 연다. 터미널로 열 때:
+#   petreview.sh slicer <case>   또는   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
 # 누락 병변: 도구막대 "누락 병변 찍기"(P)로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓰고
 #   콘솔에 "[PET-CT] … 저장" 을 찍는다(페이지에서 파일로 고른다). Slicer 기본 점 찍기 버튼으로 찍어도 같은 목록에 들어간다.
 # 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. 도구막대 "구조 색"(L)으로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
@@ -175,7 +174,8 @@ selection.SetActivePlaceNodeID(added.GetID())     # Slicer 기본 점 찍기 버
 
 
 def set_place(on):
-    if on:
+    if on:   # 선·각도 등 다른 Markups 를 쓴 뒤에도 "누락 병변" 에 찍히도록 클래스와 노드를 함께 되돌린다
+        selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
         selection.SetActivePlaceNodeID(added.GetID())
         interaction.SetPlaceModePersistence(1)
         interaction.SetCurrentInteractionMode(interaction.Place)
@@ -216,19 +216,6 @@ if cands.GetNumberOfControlPoints():
 print(f"[PET-CT] {CASE} 준비 끝: 도구막대 '누락 병변 찍기 (P)'·'구조 색 (L)'. 점 파일 {POINTS}")
 slicer.util.delayDisplay("도구막대 '누락 병변 찍기 (P)' 로 점 찍기를 켜고 끈다 · '구조 색 (L)' 로 구조 라벨 색을 켜고 끈다. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
 '''
-
-
-COMMAND = """#!/bin/sh
-# __CASE__ 를 3D Slicer 로 연다(make_review_html.py 가 만든 파일). 맥 Finder 에서 더블클릭한다.
-cd "$(dirname "$0")/__CASE___viewer" || exit 1
-# 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않는다(두 창이 같은 slicer_points.csv 를 덮어쓰지 않게)
-if pgrep -f "__CASE___viewer/open_in_slicer.py" >/dev/null; then
-  echo "__CASE__ Slicer 가 이미 열려 있다. 그 창을 쓴다."
-  osascript -e 'tell application "Slicer" to activate' >/dev/null 2>&1
-  exit 0
-fi
-exec /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
-"""
 
 
 def write_labels(vdir, labels, names, f, aff):
@@ -283,9 +270,7 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     for name, text in (("open_in_slicer.py", script), ("candidates.json", json.dumps(cands, ensure_ascii=False))):
         (vdir / name).write_text(text, encoding="utf-8")
         (vdir / name).chmod(0o600)
-    command = Path(out_dir) / f"{case}_Slicer열기.command"     # 맥 Finder 에서 더블클릭하면 터미널이 이 스크립트를 실행한다
-    command.write_text(COMMAND.replace("__CASE__", case), encoding="utf-8")
-    command.chmod(0o700)
+    (Path(out_dir) / f"{case}_Slicer열기.command").unlink(missing_ok=True)   # 예전 방식 파일. Slicer 는 맥의 petreview.sh 가 연다
     if labels is not None:
         paths["labels"] = write_labels(vdir, labels, names, f, aff)
     else:
