@@ -130,6 +130,19 @@ def save_points(*_):
         w.writerows(rows)
 
 
+# 기존 점 파일은 좌표와 구조 이름을 그대로 두고 case 열만 추가한다.
+if os.path.exists(POINTS):
+    with open(POINTS, newline="", encoding="utf-8") as fh:
+        legacy = csv.reader(fh)
+        header = next(legacy, [])
+        legacy_rows = list(legacy)
+    if header == ["n", "x", "y", "z", "structure"]:
+        with open(POINTS, "w", newline="", encoding="utf-8") as fh:
+            w = csv.writer(fh)
+            w.writerow(["case", "n", "x", "y", "z", "structure"])
+            w.writerows([CASE] + row for row in legacy_rows)
+
+
 for ev in (slicer.vtkMRMLMarkupsNode.PointPositionDefinedEvent, slicer.vtkMRMLMarkupsNode.PointEndInteractionEvent,
            slicer.vtkMRMLMarkupsNode.PointRemovedEvent):
     added.AddObserver(ev, save_points)
