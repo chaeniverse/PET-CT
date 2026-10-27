@@ -115,7 +115,7 @@ git -C ~/PET-CT/third_party/autoDS-PET rev-parse --short HEAD     # fc6bc13 이�
 - 카드: 위치(후보 SUVmax 자리의 구조 이름, 그 자리가 구조 밖이면 후보 안에서 가장 많이 겹친 구조) · 간 대비 · 혈액풀 대비 · 규칙 DS(2: ≤혈액풀, 3: ≤간, 4: ≤간×2, 5: >간×2)
 - 머리말: 기준 SUV(간 10 mm 침식 중앙값, T4–T8 높이 대동맥·심장 제외 중앙값). 분할을 SUV 격자로 nearest-neighbour 로 옮겨 SUV 격자에서 계산한다
 - LLM 입력: `site`·`r_liver`·`r_mbp`·`ds_rule`(프롬프트 v3). `--llm-input-only` 와 페이지 생성에 같은 `--totalseg` 를 준다. 다르면 의견 파일의 후보가 다르다며 멈춘다
-- Slicer: 구조 라벨 층(`<case>_viewer/labels.nii.gz`)과 이름표(`labels.ctbl`). 마우스 위치의 구조 이름이 Data Probe 에, Slicer 에서 찍은 누락 병변 점에도 구조 이름이 붙는다
+- Slicer: 구조 라벨 층(`<case>_viewer/labels.nii.gz`)과 이름표(`labels.ctbl`). 색은 처음에 숨기고 L 키로 켜고 끈다. 마우스 위치의 구조 이름이 Data Probe 에, Slicer 에서 찍은 누락 병변 점에도 구조 이름이 붙는다
 - 분할 파일이 없는 케이스는 알리고 해부 정보 없이 만든다. `--totalseg` 없이 다시 만들면 예전 구조 라벨 파일을 지운다
 
 `<case>_viewer/` 의 구조 라벨·이름표는 맥 판독 폴더로 가는 예외다([데이터 거버넌스](../data-governance.md) §2). 원본 해상도 분할(`~/autopet3/totalseg/`)은 워크스테이션 밖으로 보내지 않는다.

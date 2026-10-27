@@ -149,3 +149,22 @@ autoPET 학습 데이터는 TCIA 원본 방식이라 같은 흔들림이 섞여 
 - Slicer: `open_in_slicer.py`(viewer_volumes.py 가 생성)가 CT·SUV·병변·후보 번호·구조 라벨을 열고, P 키로 찍은 점을 `slicer_points.csv`(RAS mm·구조 이름)에 쓴다. 페이지가 그 파일을 불러와 누락 병변(`source=slicer`)으로 합친다.
 - 다른 도구(ITK-SNAP·OHIF·Horos)는 점 기록 스크립트·서버 준비·플러그인 면에서 Slicer 보다 무거워 쓰지 않는다. 좌표는 페이지·Slicer 모두 RAS mm 라 변환이 없다.
 - 페이지 HTML 에 3D 영상을 넣지 않아 가벼워졌다. `--viewer-server`·`--mac-dir` 옵션은 없앴다. 2026-10-22 출처 표의 NiiVue 는 더 쓰지 않는다.
+
+## 2026-10-27 · 판독 페이지는 서버 없이 더블클릭으로 연다
+
+사용자 결정. 로컬 서버(`review_server.py`)를 띄우는 단계를 없앤다.
+
+- 페이지: HTML 을 더블클릭(`file://`)해 연다. 판정·누락 병변 추가·CSV 내보내기는 서버 없이 된다.
+- Slicer 열기: `<case>_Slicer열기.command` 를 Finder 에서 더블클릭한다(브라우저는 맥 프로그램을 띄울 수 없다).
+- Slicer 에서 찍은 점: 페이지의 파일 선택으로 `slicer_points.csv` 를 고른다(`file://` 페이지는 옆 파일을 바로 읽을 수 없다).
+- 잃는 것: 페이지에서 Slicer 를 후보 위치로 옮기던 기능. Slicer 의 Markups "후보" 목록으로 대신한다.
+- 구조 라벨 색은 기본으로 숨기고 L 키로 켠다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+
+## 2026-10-27 · PR 리뷰에 GitHub Copilot 을 쓴다
+
+사용자 결정. 혼자 작업하면서 놓치는 부분을 줄이려고 PR 마다 Copilot 코드 리뷰를 받는다(Gemini Code Assist 는 쓰지 않는다).
+
+- 켜는 법: 개인 Copilot settings → Code review → Automatic Copilot code review. 개인 계정의 private 저장소에는 Rulesets 가 적용되지 않는다.
+- 리뷰 규칙: `.github/copilot-instructions.md`(데이터 보호·공개 코드 우선·문서 동반·PR 크기, 한국어). main 에 머지된 규칙을 읽는다.
+- 외부 분석 범위: Copilot 은 PR 의 코드 차이를 GitHub 로 보내 분석한다. 이 저장소에는 환자 데이터가 없는 코드·설정·문서만 있으므로 그 범위로 한정되고, PR 본문·댓글에도 환자 정보를 쓰지 않는다.
+- 봇 의견은 참고다. 반영하지 않을 때는 이유를 답글로 남긴다. 머지된 PR 에 달린 의견은 다음 PR 에서 반영한다(첫 적용: PR #1 의 "결정 기록 누락" 의견).
