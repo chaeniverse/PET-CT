@@ -175,4 +175,5 @@ autoPET 학습 데이터는 TCIA 원본 방식이라 같은 흔들림이 섞여 
 
 - 도구막대 "PET-CT 판독": "누락 병변 찍기 (P)"·"구조 색 (L)" 버튼에 단축키를 건다(앱 전체 단축키). Markups 기본 대상을 "누락 병변" 으로 정해 Slicer 기본 점 찍기 버튼도 같은 목록에 찍는다. 점을 저장할 때마다 콘솔에 `[PET-CT] … 저장` 을 찍는다.
 - 3D 칸: SUV 를 MIP 로 그리고(창 0–8) 병변 표면을 겹친다. 실패해도 단면 판독은 그대로 되게 한다.
-- 페이지 "Slicer 로 보기": `petreview://slicer/<case>` 링크. 맥에 한 번 만든 AppleScript 연결 앱(PetReview.app)이 `petreview.sh slicer <case>` 를 실행한다. 서버를 띄우지 않고, `.command` 더블클릭도 그대로 쓸 수 있다.
+- 페이지 "Slicer 로 보기": `petreview://slicer/<case>` 링크. 맥에 한 번 만든 AppleScript 연결 앱(PetReview.app)이 `petreview.sh slicer <case>` 를 실행한다. 서버를 띄우지 않는다. `petreview.sh slicer` 가 Slicer 를 직접 열고 같은 케이스 중복 실행을 막으므로 `<case>_Slicer열기.command` 는 만들지 않는다.
+- Slicer 용 영상 상한을 1억 7천만 복셀로 올려 Vision 600 PET(440×440×842)도 원래 해상도로 보낸다. 원본 DICOM 은 맥으로 보내지 않는다.

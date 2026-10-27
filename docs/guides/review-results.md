@@ -36,7 +36,7 @@ cd ~/PET-CT
 ~/PET-CT/third_party/autopet-3-submission/.venv/bin/python scripts/make_review_html.py P01 P02 --input ~/autopet3/input_series --output ~/autopet3/output_series --totalseg ~/autopet3/totalseg --llm-opinion ~/autopet3/llm --note "P02=헤더 체중 확인 전 SUV"
 ```
 
-- 출력: `~/autopet3/review/<case>_후보확인.html`, Slicer 용 `<case>_viewer/`(CT·SUV·마스크, 후보 목록, `--totalseg` 이면 구조 라벨·이름표, `open_in_slicer.py`), Finder 에서 더블클릭할 `<case>_Slicer열기.command`.
+- 출력: `~/autopet3/review/<case>_후보확인.html`, Slicer 용 `<case>_viewer/`(CT·SUV·마스크, 후보 목록, `--totalseg` 이면 구조 라벨·이름표, `open_in_slicer.py`).
   **영상이 들어 있으므로 저장소·다른 클라우드·공유 폴더로 옮기지 않는다.** 허용 위치는 [데이터 거버넌스](../data-governance.md) §2. 저장소 안을 출력 폴더로 주면 스크립트가 멈춘다.
 
 ### 2-1. 맥에서 보기·판정
@@ -59,7 +59,6 @@ open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finde
 - 열기: HTML 을 더블클릭(`file://`)해 연다. 서버는 쓰지 않는다(2026-10-27).
   판정은 주소별 브라우저 저장소에 `fl-review:<case>` 키로 쌓이므로 늘 같은 방식(더블클릭)으로 연다.
   예전에 `http://127.0.0.1:8765/…` 로 열어 한 판정은 더블클릭으로 연 페이지에 보이지 않으니, 그 주소로 한 번 열어 CSV 로 받아 둔다.
-- rsync 는 `<case>_Slicer열기.command` 의 실행 권한을 그대로 가져온다. Finder 에서 "열 수 없음" 이 뜨면 `chmod u+x "$DST"/*.command`.
 - 후보 번호(SUVmax 순)가 바뀐 새 HTML 을 받으면 이전 판정이 다른 카드에 붙는다. 진행 표시를 먼저 보고, 필요하면 CSV 를 받아 둔 뒤 "판정 모두 지우기".
 - rsync 에 `--delete` 를 쓰지 않는다(맥 쪽 CSV 를 지우지 않도록).
 - 맥에서 판독하면 CSV 를 판독 폴더(`$DST`)에 저장한다(Downloads 에 남기지 않는다).
@@ -68,7 +67,7 @@ open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finde
 ### 2-2. 맥 3D Slicer 로 3D 판독
 
 페이지의 "Slicer 로 보기" 를 누르면 맥의 PetReview 연결 앱이 `petreview.sh slicer <case>` 를 실행해 Slicer 를 연다(아래 "연결 앱 만들기", 처음 한 번).
-연결 앱이 없으면 판독 폴더의 `<case>_Slicer열기.command` 를 Finder 에서 더블클릭한다. 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않고 그 창을 앞으로 가져온다(두 창이 같은 점 파일을 덮어쓰지 않게).
+연결 앱이 없으면 맥 터미널에서 `petreview.sh slicer <case>` 를 실행한다. 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않고 그 창을 앞으로 가져온다(두 창이 같은 점 파일을 덮어쓰지 않게).
 Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-Heat, 0–8)·autoPET 병변(빨강)·후보 번호(남색 점, `카드 번호 (#기록)`)를 4분할로 열고, 3D 칸에는 SUV MIP 와 병변을 그린다.
 구조 라벨(`--totalseg` 일 때)은 불러오되 색은 숨겨 둔다. 영상은 Slicer 용으로 줄인 파일이다(수치는 카드 값을 쓴다).
 
@@ -104,10 +103,10 @@ open "petreview://slicer/P01"                                # 시험: Slicer �
 - 페이지에서 처음 누를 때 Chrome 이 "PetReview.app 을 열까요?" 를 묻는다. "항상 허용" 을 켠다.
 - `petreview.sh`(맥 판독 도구, 저장소 밖)는 `fetch`·`open <case>`·`slicer <case>`·`status` 를 한다.
 
-`.command` 대신 터미널로 열 때:
+`petreview.sh` 없이 터미널로 열 때:
 
 ```zsh
-cd "$DST/P01_viewer" && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
+cd "$DST/P01_viewer" && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
 ```
 
 Slicer 설치(맥 터미널, 처음 한 번). Homebrew 판은 Intel 빌드라 Apple Silicon 맥은 Rosetta 2 가 먼저 있어야 한다(macOS 14 이상).
