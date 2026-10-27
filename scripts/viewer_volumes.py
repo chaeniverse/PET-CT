@@ -45,8 +45,10 @@ def label_colors(n):
 SLICER_SCRIPT = r'''# 3D Slicer 로 이 폴더의 영상을 연다(make_review_html.py 가 만든 파일, 고치지 않는다).
 # 보통은 판독 폴더의 <case>_Slicer열기.command 를 Finder 에서 더블클릭해 연다. 터미널로 열 때:
 #   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
-# 누락 병변: P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓴다(페이지에서 파일로 고른다).
-# 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. L 키로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+# 누락 병변: 도구막대 "누락 병변 찍기"(P)로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓰고
+#   콘솔에 "[PET-CT] … 저장" 을 찍는다(페이지에서 파일로 고른다). Slicer 기본 점 찍기 버튼으로 찍어도 같은 목록에 들어간다.
+# 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. 도구막대 "구조 색"(L)으로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+# 3D 칸에는 SUV 를 MIP 로 그리고 병변(빨강)을 겹친다.
 import csv
 import json
 import os
@@ -86,6 +88,23 @@ if os.path.exists(f("labels.nii.gz")):
 slicer.util.setSliceViewerLayers(background=ct, foreground=suv, foregroundOpacity=0.5, label=lab, labelOpacity=0.0)
 slicer.app.layoutManager().setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
 lesion.CreateClosedSurfaceRepresentation()
+
+# 3D 칸: SUV 를 MIP(최대 강도 투영)로 그린다. 창은 단면과 같은 SUV 0–__SUV_MAX__
+try:
+    vr = slicer.modules.volumerendering.logic()
+    vr_display = vr.CreateDefaultVolumeRenderingNodes(suv)
+    vr_display.GetVolumePropertyNode().Copy(vr.GetPresetByName("MR-MIP"))
+    vol_prop = vr_display.GetVolumePropertyNode().GetVolumeProperty()
+    opacity = vtk.vtkPiecewiseFunction()
+    opacity.AddPoint(0, 0.0)
+    opacity.AddPoint(__SUV_MAX__ * k, 1.0)
+    vol_prop.SetScalarOpacity(opacity)
+    vr_display.SetVisibility(True)
+    view_node = slicer.app.layoutManager().threeDWidget(0).mrmlViewNode()
+    view_node.SetRaycastTechnique(slicer.vtkMRMLViewNode.MaximumIntensityProjection)
+except Exception as e:   # 3D 가 안 떠도 단면 판독·점 찍기는 그대로 되게
+    print("[PET-CT] 3D 보기를 켜지 못했다:", e)
+slicer.util.resetThreeDViews()
 
 # 후보 번호: 페이지 카드 번호(기록 #). 잠가 둔다
 cands = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "후보")
@@ -128,6 +147,7 @@ def save_points(*_):
         w = csv.writer(fh)
         w.writerow(["case", "n", "x", "y", "z", "structure"])
         w.writerows(rows)
+    print(f"[PET-CT] {CASE} 누락 병변 점 {len(rows)}개 저장 -> {POINTS}")
 
 
 # 기존 점 파일은 좌표와 구조 이름을 그대로 두고 case 열만 추가한다.
@@ -147,40 +167,54 @@ for ev in (slicer.vtkMRMLMarkupsNode.PointPositionDefinedEvent, slicer.vtkMRMLMa
            slicer.vtkMRMLMarkupsNode.PointRemovedEvent):
     added.AddObserver(ev, save_points)
 
-# P 키: 누락 병변 점 찍기 켜기/끄기
+# 도구막대 "PET-CT 판독": 누락 병변 찍기(P)·구조 색(L). 단면 창이 키를 먼저 가져가므로 QShortcut 대신 도구막대 동작에 단축키를 건다
 selection = slicer.app.applicationLogic().GetSelectionNode()
 interaction = slicer.app.applicationLogic().GetInteractionNode()
+selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+selection.SetActivePlaceNodeID(added.GetID())     # Slicer 기본 점 찍기 버튼도 "누락 병변" 에 찍게
 
 
-def toggle_place():
-    if interaction.GetCurrentInteractionMode() == interaction.Place:
+def set_place(on):
+    if on:
+        selection.SetActivePlaceNodeID(added.GetID())
+        interaction.SetPlaceModePersistence(1)
+        interaction.SetCurrentInteractionMode(interaction.Place)
+    else:
         interaction.SetCurrentInteractionMode(interaction.ViewTransform)
-        return
-    selection.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    selection.SetActivePlaceNodeID(added.GetID())
-    interaction.SetPlaceModePersistence(1)
-    interaction.SetCurrentInteractionMode(interaction.Place)
 
 
-place_key = qt.QShortcut(qt.QKeySequence("P"), slicer.util.mainWindow())
-place_key.connect("activated()", toggle_place)
-
-# L 키: 구조 라벨 색 켜기/끄기(처음에는 꺼 둠)
-def toggle_labels():
+def set_labels(on):
     if lab is None:
         return
     for name in slicer.app.layoutManager().sliceViewNames():
-        comp = slicer.app.layoutManager().sliceWidget(name).sliceLogic().GetSliceCompositeNode()
-        comp.SetLabelOpacity(0.0 if comp.GetLabelOpacity() > 0 else 0.4)
+        slicer.app.layoutManager().sliceWidget(name).sliceLogic().GetSliceCompositeNode().SetLabelOpacity(0.4 if on else 0.0)
 
 
-label_key = qt.QShortcut(qt.QKeySequence("L"), slicer.util.mainWindow())
-label_key.connect("activated()", toggle_labels)
+toolbar = slicer.util.mainWindow().addToolBar("PET-CT 판독")
+place_action = toolbar.addAction("누락 병변 찍기 (P)")
+label_action = toolbar.addAction("구조 색 (L)")
+for action, key, slot in ((place_action, "P", set_place), (label_action, "L", set_labels)):
+    action.setCheckable(True)
+    action.setShortcut(qt.QKeySequence(key))
+    action.setShortcutContext(qt.Qt.ApplicationShortcut)
+    action.connect("toggled(bool)", slot)
+label_action.setEnabled(lab is not None)
+
+
+def sync_place_button(*_):
+    """Esc·다른 버튼으로 점 찍기가 끝나도 도구막대 버튼 상태를 맞춘다."""
+    place_action.blockSignals(True)
+    place_action.setChecked(interaction.GetCurrentInteractionMode() == interaction.Place)
+    place_action.blockSignals(False)
+
+
+interaction.AddObserver(vtk.vtkCommand.ModifiedEvent, sync_place_button)
 if cands.GetNumberOfControlPoints():
     p0 = [0.0, 0.0, 0.0]
     cands.GetNthControlPointPositionWorld(0, p0)
     slicer.modules.markups.logic().JumpSlicesToLocation(p0[0], p0[1], p0[2], True)
-slicer.util.delayDisplay("P 키: 누락 병변 점 찍기 켜기/끄기 · L 키: 구조 라벨 색 켜기/끄기. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
+print(f"[PET-CT] {CASE} 준비 끝: 도구막대 '누락 병변 찍기 (P)'·'구조 색 (L)'. 점 파일 {POINTS}")
+slicer.util.delayDisplay("도구막대 '누락 병변 찍기 (P)' 로 점 찍기를 켜고 끈다 · '구조 색 (L)' 로 구조 라벨 색을 켜고 끈다. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
 '''
 
 
