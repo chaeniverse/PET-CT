@@ -39,6 +39,16 @@ Conventional Commits, 소문자 타입. `<타입>: <요약>` 한 줄, 명령형�
 - 제목은 커밋과 같은 `타입: 요약` 형식.
 - 본문은 템플릿(요약·목적·주요 변경 사항·테스트 체크리스트)을 채운다. **테스트 체크리스트의 데이터 보호 항목은 빼지 않는다.**
 
+## AI 리뷰 (Copilot)
+
+PR 을 열면 Copilot 이 요약과 줄 단위 의견을 단다(Copilot 유료 플랜 필요). 리뷰 규칙은 `.github/copilot-instructions.md` 에 있다(앞 4,000자만 읽음).
+
+- 켜는 법: GitHub 오른쪽 위 프로필 사진 → Copilot settings → Code review → "Automatic Copilot code review" 를 켠다(내가 여는 PR 에 자동 리뷰). 한 번만 받을 때는 PR 의 Reviewers 에서 Copilot 을 고른다
+  - 저장소 Rulesets 의 같은 규칙은 개인 계정의 private 저장소에서는 적용되지 않는다(GitHub Team 조직 필요)
+- Copilot 은 PR 대상 브랜치(main)의 `copilot-instructions.md` 를 읽는다. 규칙을 바꾸면 main 에 머지된 뒤부터 적용된다
+- 봇은 PR 의 코드 차이를 외부(GitHub)로 보내 분석한다. **PR 본문·댓글에 환자 정보를 쓰지 않는다.**
+- 봇 의견은 참고다. 반영하지 않을 때는 이유를 답글로 남기고 resolve 한다
+
 ## 커밋 전 점검
 
 ```bash
