@@ -159,3 +159,12 @@ autoPET 학습 데이터는 TCIA 원본 방식이라 같은 흔들림이 섞여 
 - Slicer 에서 찍은 점: 페이지의 파일 선택으로 `slicer_points.csv` 를 고른다(`file://` 페이지는 옆 파일을 바로 읽을 수 없다).
 - 잃는 것: 페이지에서 Slicer 를 후보 위치로 옮기던 기능. Slicer 의 Markups "후보" 목록으로 대신한다.
 - 구조 라벨 색은 기본으로 숨기고 L 키로 켠다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
+
+## 2026-10-27 · PR 리뷰에 GitHub Copilot 을 쓴다
+
+사용자 결정. 혼자 작업하면서 놓치는 부분을 줄이려고 PR 마다 Copilot 코드 리뷰를 받는다(Gemini Code Assist 는 쓰지 않는다).
+
+- 켜는 법: 개인 Copilot settings → Code review → Automatic Copilot code review. 개인 계정의 private 저장소에는 Rulesets 가 적용되지 않는다.
+- 리뷰 규칙: `.github/copilot-instructions.md`(데이터 보호·공개 코드 우선·문서 동반·PR 크기, 한국어). main 에 머지된 규칙을 읽는다.
+- 외부 분석 범위: Copilot 은 PR 의 코드 차이를 GitHub 로 보내 분석한다. 이 저장소에는 환자 데이터가 없는 코드·설정·문서만 있으므로 그 범위로 한정되고, PR 본문·댓글에도 환자 정보를 쓰지 않는다.
+- 봇 의견은 참고다. 반영하지 않을 때는 이유를 답글로 남긴다. 머지된 PR 에 달린 의견은 다음 PR 에서 반영한다(첫 적용: PR #1 의 "결정 기록 누락" 의견).
