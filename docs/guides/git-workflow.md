@@ -39,6 +39,15 @@ Conventional Commits, 소문자 타입. `<타입>: <요약>` 한 줄, 명령형�
 - 제목은 커밋과 같은 `타입: 요약` 형식.
 - 본문은 템플릿(요약·목적·주요 변경 사항·테스트 체크리스트)을 채운다. **테스트 체크리스트의 데이터 보호 항목은 빼지 않는다.**
 
+## AI 리뷰 (Gemini Code Assist · Copilot)
+
+PR 을 열면 리뷰 봇이 요약과 줄 단위 의견을 단다. 리뷰 규칙은 저장소의 `.gemini/styleguide.md`(Gemini), `.github/copilot-instructions.md`(Copilot, 앞 4,000자만 읽음)에 있다.
+
+- Gemini: GitHub Marketplace 의 Gemini Code Assist 앱을 설치하고 이 저장소를 고른다. PR 을 열면 자동 리뷰, 댓글 `/gemini review` 로 다시 요청. 설정은 `.gemini/config.yaml`
+- Copilot: Copilot 유료 플랜이 있을 때만. PR 의 Reviewers 에 Copilot 을 지정하거나, Settings → Rules → Rulesets 에서 자동 리뷰를 켠다
+- 봇은 PR 의 코드 차이를 외부(Google·GitHub)로 보내 분석한다. **PR 본문·댓글에 환자 정보를 쓰지 않는다.**
+- 봇 의견은 참고다. 반영하지 않을 때는 이유를 답글로 남기고 resolve 한다
+
 ## 커밋 전 점검
 
 ```bash
