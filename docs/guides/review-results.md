@@ -67,18 +67,42 @@ open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finde
 
 ### 2-2. 맥 3D Slicer 로 3D 판독
 
-판독 폴더의 `<case>_Slicer열기.command` 를 Finder 에서 더블클릭하면 터미널 창이 열리며 Slicer 가 뜬다(브라우저는 맥 프로그램을 띄울 수 없어 페이지 버튼 대신 이 파일을 쓴다).
-같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않고 그 창을 앞으로 가져온다(두 창이 같은 점 파일을 덮어쓰지 않게).
-Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-Heat, 0–8)·autoPET 병변(빨강)·후보 번호(남색 점, `카드 번호 (#기록)`)를 4분할로 연다.
-구조 라벨(`--totalseg` 일 때)은 불러오되 색은 숨겨 둔다(L 키로 켜고 끔).
-영상은 Slicer 용으로 줄인 파일이다(수치는 카드 값을 쓴다).
+페이지의 "Slicer 로 보기" 를 누르면 맥의 PetReview 연결 앱이 `petreview.sh slicer <case>` 를 실행해 Slicer 를 연다(아래 "연결 앱 만들기", 처음 한 번).
+연결 앱이 없으면 판독 폴더의 `<case>_Slicer열기.command` 를 Finder 에서 더블클릭한다. 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않고 그 창을 앞으로 가져온다(두 창이 같은 점 파일을 덮어쓰지 않게).
+Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-Heat, 0–8)·autoPET 병변(빨강)·후보 번호(남색 점, `카드 번호 (#기록)`)를 4분할로 열고, 3D 칸에는 SUV MIP 와 병변을 그린다.
+구조 라벨(`--totalseg` 일 때)은 불러오되 색은 숨겨 둔다. 영상은 Slicer 용으로 줄인 파일이다(수치는 카드 값을 쓴다).
 
 | 하는 일 | 방법 |
 |---|---|
 | 후보 위치로 가기 | Slicer 의 Markups 모듈 "후보" 목록에서 번호를 누른다(처음에는 후보 1 위치로 열린다) |
-| 누락 병변 찍기 | Slicer 에서 P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기마다 `<case>_viewer/slicer_points.csv`(RAS mm·구조 이름)에 쓴다. 다시 열면 이어서 보인다 |
+| 누락 병변 찍기 | 도구막대 "PET-CT 판독" 의 "누락 병변 찍기 (P)" 를 켜고 단면을 클릭한다(Slicer 기본 점 찍기 버튼으로 찍어도 같은 목록). 찍기·옮기기·지우기마다 `<case>_viewer/slicer_points.csv`(case·RAS mm·구조 이름)에 쓰고 Python 콘솔에 `[PET-CT] … 저장` 을 찍는다. 다시 열면 이어서 보인다 |
 | 페이지로 가져오기 | 페이지의 "Slicer 에서 찍은 점 불러오기" → `<case>_viewer/slicer_points.csv` 를 고른다 → 3번 누락 병변 목록에 합쳐지고 결과 CSV 에 `source=slicer` 로 남는다. 점 파일의 `case` 가 페이지 케이스와 다르면 받지 않는다 |
-| 구조 이름·색 | 마우스를 올리면 아래 Data Probe 칸에 구조 이름이 나온다(색을 숨겨도 나온다). 색은 L 키로 켜고 끈다 |
+| 구조 이름·색 | 마우스를 올리면 아래 Data Probe 칸에 구조 이름이 나온다(색을 숨겨도 나온다). 색은 도구막대 "구조 색 (L)" 로 켜고 끈다 |
+| 3D 보기 | 오른쪽 위 칸을 마우스로 끌어 돌린다. 단면 세 칸은 3D 볼륨을 세 방향으로 자른 면이다 |
+
+연결 앱 만들기(맥 터미널, 처음 한 번). `petreview://slicer/<case>` 주소를 받으면 `petreview.sh slicer <case>` 를 실행하는 작은 AppleScript 앱이다.
+`petreview.sh` 가 케이스 형식(P01·C001)을 검사하므로, 다른 웹페이지가 이 주소를 불러도 Slicer 를 여는 것 말고는 할 수 없다.
+
+```zsh
+T="$HOME/Library/CloudStorage/Dropbox/Work/PIPET/과제/혈액내과/PET-MRD/tools"; mkdir -p ~/bin ~/Applications && ln -sf "$T/petreview.sh" ~/bin/petreview.sh
+cat > /tmp/petreview_url.applescript <<'APPLESCRIPT'
+on open location theURL
+	set prefix to "petreview://slicer/"
+	if theURL starts with prefix then
+		set c to text ((length of prefix) + 1) thru -1 of theURL
+		do shell script "/bin/bash \"$HOME/bin/petreview.sh\" slicer " & quoted form of c
+	end if
+end open location
+APPLESCRIPT
+osacompile -o ~/Applications/PetReview.app /tmp/petreview_url.applescript
+P=~/Applications/PetReview.app/Contents/Info.plist; /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier kr.pipet.petreview' -c 'Add :CFBundleURLTypes array' -c 'Add :CFBundleURLTypes:0 dict' -c 'Add :CFBundleURLTypes:0:CFBundleURLName string PetReview' -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes array' -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string petreview' "$P"
+codesign --force --sign - ~/Applications/PetReview.app      # Info.plist 를 고치면 서명이 깨지므로 이 맥 전용 서명을 다시 붙인다
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f ~/Applications/PetReview.app
+open "petreview://slicer/P01"                                # 시험: Slicer 가 열리면 성공
+```
+
+- 페이지에서 처음 누를 때 Chrome 이 "PetReview.app 을 열까요?" 를 묻는다. "항상 허용" 을 켠다.
+- `petreview.sh`(맥 판독 도구, 저장소 밖)는 `fetch`·`open <case>`·`slicer <case>`·`status` 를 한다.
 
 `.command` 대신 터미널로 열 때:
 
