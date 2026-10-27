@@ -68,6 +68,7 @@ open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finde
 ### 2-2. 맥 3D Slicer 로 3D 판독
 
 판독 폴더의 `<case>_Slicer열기.command` 를 Finder 에서 더블클릭하면 터미널 창이 열리며 Slicer 가 뜬다(브라우저는 맥 프로그램을 띄울 수 없어 페이지 버튼 대신 이 파일을 쓴다).
+같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않고 그 창을 앞으로 가져온다(두 창이 같은 점 파일을 덮어쓰지 않게).
 Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-Heat, 0–8)·autoPET 병변(빨강)·후보 번호(남색 점, `카드 번호 (#기록)`)를 4분할로 연다.
 구조 라벨(`--totalseg` 일 때)은 불러오되 색은 숨겨 둔다(L 키로 켜고 끔).
 영상은 Slicer 용으로 줄인 파일이다(수치는 카드 값을 쓴다).
@@ -76,7 +77,7 @@ Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-
 |---|---|
 | 후보 위치로 가기 | Slicer 의 Markups 모듈 "후보" 목록에서 번호를 누른다(처음에는 후보 1 위치로 열린다) |
 | 누락 병변 찍기 | Slicer 에서 P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기마다 `<case>_viewer/slicer_points.csv`(RAS mm·구조 이름)에 쓴다. 다시 열면 이어서 보인다 |
-| 페이지로 가져오기 | 페이지의 "Slicer 에서 찍은 점 불러오기" → `<case>_viewer/slicer_points.csv` 를 고른다 → 3번 누락 병변 목록에 합쳐지고 결과 CSV 에 `source=slicer` 로 남는다 |
+| 페이지로 가져오기 | 페이지의 "Slicer 에서 찍은 점 불러오기" → `<case>_viewer/slicer_points.csv` 를 고른다 → 3번 누락 병변 목록에 합쳐지고 결과 CSV 에 `source=slicer` 로 남는다. 점 파일의 `case` 가 페이지 케이스와 다르면 받지 않는다 |
 | 구조 이름·색 | 마우스를 올리면 아래 Data Probe 칸에 구조 이름이 나온다(색을 숨겨도 나온다). 색은 L 키로 켜고 끈다 |
 
 `.command` 대신 터미널로 열 때:

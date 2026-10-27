@@ -174,11 +174,13 @@ function loadSlicerPoints(input) {
   const reader = new FileReader();
   reader.onload = () => {
     const lines = String(reader.result).trim().split(/\r?\n/);
-    if (lines[0].replace(/^\ufeff/, '') !== 'n,x,y,z,structure') { smsg.textContent = file.name + ' 는 Slicer 점 파일(slicer_points.csv)이 아니다.'; return; }
-    const pts = lines.slice(1).filter(Boolean).map(l => {
-      const [, x, y, z, st] = l.split(',');
-      return {x: +x, y: +y, z: +z, memo: st ? 'Slicer: ' + st : 'Slicer', source: 'slicer'};
-    });
+    if (lines[0].replace(/^\ufeff/, '') !== 'case,n,x,y,z,structure') { smsg.textContent = file.name + ' 는 Slicer 점 파일(slicer_points.csv)이 아니다.'; return; }
+    const rows = lines.slice(1).filter(Boolean).map(l => l.split(','));
+    // 다른 케이스의 점 파일이면 목록을 바꾸지 않는다(P01 페이지에서 P02 파일을 고른 경우 등)
+    const other = rows.find(r => r[0] !== DATA.case);
+    if (other) { smsg.textContent = `${other[0]} 의 점 파일이다. ${DATA.case}_viewer/slicer_points.csv 를 고른다(목록은 그대로 둠).`; return; }
+    if (!rows.length) { smsg.textContent = '파일에 점이 없다(목록은 그대로 둠).'; return; }
+    const pts = rows.map(([, , x, y, z, st]) => ({x: +x, y: +y, z: +z, memo: st ? 'Slicer: ' + st : 'Slicer', source: 'slicer'}));
     state.added = state.added.filter(a => a.source !== 'slicer').concat(pts); save(); drawMarks();
     smsg.textContent = `Slicer 점 ${pts.length}개를 3번 목록에 합쳤다(이전에 불러온 Slicer 점은 바꿔 넣음).`;
   };

@@ -56,6 +56,7 @@ import slicer
 import vtk
 
 D = os.getcwd()
+CASE = "__CASE__"    # 점 파일에 케이스 가명을 남겨, 페이지가 다른 케이스 파일을 받지 않게 한다
 
 
 def f(name):
@@ -122,10 +123,10 @@ def save_points(*_):
     for n in range(added.GetNumberOfControlPoints()):
         p = [0.0, 0.0, 0.0]
         added.GetNthControlPointPositionWorld(n, p)
-        rows.append([n + 1, round(p[0], 1), round(p[1], 1), round(p[2], 1), structure_at(p)])
+        rows.append([CASE, n + 1, round(p[0], 1), round(p[1], 1), round(p[2], 1), structure_at(p)])
     with open(POINTS, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["n", "x", "y", "z", "structure"])
+        w.writerow(["case", "n", "x", "y", "z", "structure"])
         w.writerows(rows)
 
 
@@ -173,7 +174,13 @@ slicer.util.delayDisplay("P 키: 누락 병변 점 찍기 켜기/끄기 · L 키
 COMMAND = """#!/bin/sh
 # __CASE__ 를 3D Slicer 로 연다(make_review_html.py 가 만든 파일). 맥 Finder 에서 더블클릭한다.
 cd "$(dirname "$0")/__CASE___viewer" || exit 1
-exec /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
+# 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않는다(두 창이 같은 slicer_points.csv 를 덮어쓰지 않게)
+if pgrep -f "__CASE___viewer/open_in_slicer.py" >/dev/null; then
+  echo "__CASE__ Slicer 가 이미 열려 있다. 그 창을 쓴다."
+  osascript -e 'tell application "Slicer" to activate' >/dev/null 2>&1
+  exit 0
+fi
+exec /Applications/Slicer.app/Contents/MacOS/Slicer --python-script "$PWD/open_in_slicer.py"
 """
 
 
@@ -225,6 +232,7 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     script = SLICER_SCRIPT
     for k, v in (("__CT_MIN__", ct_window[0]), ("__CT_MAX__", ct_window[1]), ("__SUV_MAX__", suv_max), ("__SUV_STEP__", SUV_STEP)):
         script = script.replace(k, repr(float(v)))
+    script = script.replace("__CASE__", case)
     for name, text in (("open_in_slicer.py", script), ("candidates.json", json.dumps(cands, ensure_ascii=False))):
         (vdir / name).write_text(text, encoding="utf-8")
         (vdir / name).chmod(0o600)
