@@ -149,3 +149,13 @@ autoPET 학습 데이터는 TCIA 원본 방식이라 같은 흔들림이 섞여 
 - Slicer: `open_in_slicer.py`(viewer_volumes.py 가 생성)가 CT·SUV·병변·후보 번호·구조 라벨을 열고, P 키로 찍은 점을 `slicer_points.csv`(RAS mm·구조 이름)에 쓴다. 페이지가 그 파일을 불러와 누락 병변(`source=slicer`)으로 합친다.
 - 다른 도구(ITK-SNAP·OHIF·Horos)는 점 기록 스크립트·서버 준비·플러그인 면에서 Slicer 보다 무거워 쓰지 않는다. 좌표는 페이지·Slicer 모두 RAS mm 라 변환이 없다.
 - 페이지 HTML 에 3D 영상을 넣지 않아 가벼워졌다. `--viewer-server`·`--mac-dir` 옵션은 없앴다. 2026-10-22 출처 표의 NiiVue 는 더 쓰지 않는다.
+
+## 2026-10-27 · 판독 페이지는 서버 없이 더블클릭으로 연다
+
+사용자 결정. 로컬 서버(`review_server.py`)를 띄우는 단계를 없앤다.
+
+- 페이지: HTML 을 더블클릭(`file://`)해 연다. 판정·누락 병변 추가·CSV 내보내기는 서버 없이 된다.
+- Slicer 열기: `<case>_Slicer열기.command` 를 Finder 에서 더블클릭한다(브라우저는 맥 프로그램을 띄울 수 없다).
+- Slicer 에서 찍은 점: 페이지의 파일 선택으로 `slicer_points.csv` 를 고른다(`file://` 페이지는 옆 파일을 바로 읽을 수 없다).
+- 잃는 것: 페이지에서 Slicer 를 후보 위치로 옮기던 기능. Slicer 의 Markups "후보" 목록으로 대신한다.
+- 구조 라벨 색은 기본으로 숨기고 L 키로 켠다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
