@@ -1,0 +1,254 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>__TITLE__</title>
+<!-- make_review_html.py 가 DATA 자리에 후보·이미지를 채워 넣는다. 채워진 HTML 에는 환자 영상이 들어 있으므로 저장소에 두지 않는다. -->
+<style>
+#slicer-msg{font-size:12px;color:#404040;white-space:pre-wrap;margin:6px 0 0}
+body{font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans CJK KR","Malgun Gothic",Arial,sans-serif;margin:0;background:#fff;color:#262626}
+header{background:#1F3864;color:#fff;padding:14px 24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+header label{font-size:13px}
+header input[type=text]{padding:4px 8px;border:1px solid #bbb;border-radius:3px;font-size:13px}
+header .small{color:#D9D9D9}
+main{display:grid;grid-template-columns:600px 1fr;gap:20px;padding:20px 24px;max-width:1800px}
+.left{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;padding-bottom:12px}
+.panel{border:1px solid #BFBFBF;padding:12px}
+.panel+.panel{margin-top:14px}
+.panel h2{font-size:14px;margin:0 0 8px;color:#1F3864}
+.card{border:1px solid #BFBFBF;padding:10px;margin-bottom:12px}
+.card.hl{border-color:#C00000;box-shadow:0 0 0 1px #C00000}
+.imgs{display:flex;gap:10px;flex-wrap:wrap}
+.card figure{margin:0;text-align:center}
+.card img{width:150px;height:150px;display:block;background:#fff;border:1px solid #eee}
+.card figcaption{font-size:11px;color:#7F7F7F}
+.row{display:grid;grid-template-columns:1fr 260px;gap:12px;margin-top:8px}
+.meta{font-size:13px;line-height:1.7}
+.meta b{color:#1F3864;font-size:15px}
+.memo{width:100%;box-sizing:border-box;margin-top:6px;padding:5px 8px;border:1px solid #BFBFBF;border-radius:3px;font-size:13px}
+.llm{border-left:3px solid #7F7F7F;background:#F7F7F7;padding:8px 10px;font-size:12.5px;line-height:1.6}
+.llm b{color:#404040}
+.llm.none,.llm.wait{color:#7F7F7F}
+.llm .q{margin-top:6px;font-weight:bold;color:#1F3864}
+.btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.btns button{padding:6px 12px;border:1px solid #7F7F7F;background:#fff;cursor:pointer;font-size:13px;border-radius:3px}
+.btns button.on{background:#1F3864;color:#fff;border-color:#1F3864}
+.btns button.small{padding:4px 8px;font-size:12px}
+.small{font-size:12px;color:#7F7F7F}
+#mipwrap{position:relative;display:inline-block;width:100%;cursor:pointer}
+#mipwrap img{width:100%;display:block}
+#mipwrap.adding{cursor:crosshair}
+.dot{position:absolute;width:14px;height:14px;border:2px solid #C00000;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.cand{position:absolute;width:16px;height:16px;border:1.5px solid #1F3864;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.cand span{position:absolute;left:18px;top:-2px;font-size:11px;font-weight:bold;color:#1F3864}
+.cand.done{border-color:#7F7F7F}.cand.done span{color:#7F7F7F}
+.cand.hl{border-color:#C00000;border-width:2.5px}.cand.hl span{color:#C00000}
+table{border-collapse:collapse;font-size:12px;width:100%}
+th{background:#1F3864;color:#fff;text-align:left;padding:4px 6px}
+td{border-bottom:1px solid #ddd;padding:4px 6px}
+.toolbar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.toolbar button{padding:8px 14px;border:1px solid #1F3864;background:#1F3864;color:#fff;cursor:pointer;border-radius:3px}
+.toolbar button.sec{background:#fff;color:#1F3864}
+@media (max-width:1300px){main{grid-template-columns:1fr}.left{position:static;max-height:none}.row{grid-template-columns:1fr}}
+</style></head><body>
+<header><h1>FL 후보 확인</h1>
+<label>연구 ID <input type="text" id="pid" size="10"></label>
+<label>판독의 <input type="text" id="reader" placeholder="이니셜" size="8"></label>
+<label><input type="checkbox" id="hidellm"> 내 판정 전에는 LLM 의견 숨기기</label>
+<span class="small" id="note"></span></header>
+<main>
+<div class="left">
+ <div class="panel"><h2>1. 관상면 MIP와 후보 번호</h2>
+  <div id="mipwrap"><img id="mip" alt="coronal MIP"></div>
+  <p class="small">환자 오른쪽이 화면 왼쪽. MIP를 클릭하면 열린 Slicer 가 그 점에서 가장 뜨거운 깊이로 이동한다. 3번에서 "누락 병변 추가"를 켜면 클릭한 위치(x, y, z mm)를 기록한다.</p>
+ </div>
+ <div class="panel" id="slicerpanel"><h2>2. 3D 보기 (3D Slicer)</h2>
+  <div class="btns"><button onclick="openSlicer()">Slicer 로 보기</button><button onclick="loadSlicerPoints()">Slicer 에서 찍은 점 불러오기</button></div>
+  <pre id="slicer-msg"></pre>
+  <p class="small">맥 판독 폴더에서 <code>python3 review_server.py</code> 로 연 주소(http://127.0.0.1:8765/…)에서 동작한다. Slicer 에는 CT·SUV·병변(빨강)·후보 번호(남색)·구조 라벨이 겹쳐 열린다.
+  Slicer 에서 P 키로 누락 병변 점 찍기를 켜고 끈다. 찍은 점은 "불러오기"로 3번 목록에 합쳐지고 CSV 에 source=slicer 로 남는다. 카드의 "Slicer 에서 보기"나 MIP 클릭은 열린 Slicer 를 그 위치로 옮긴다.</p>
+ </div>
+ <div class="panel"><h2>3. 누락 병변 추가</h2>
+  <div class="btns"><button id="addmode" onclick="toggleAdd()">누락 병변 추가 모드: 꺼짐</button><button onclick="clearAdded()">추가 목록 지우기</button></div>
+  <table style="margin-top:8px"><thead><tr><th>#</th><th>x</th><th>y</th><th>z (mm)</th><th>메모</th><th></th></tr></thead><tbody id="added"></tbody></table>
+ </div>
+ <div class="panel"><h2>4. 저장</h2>
+  <p class="small">판정은 이 브라우저에 자동 저장된다(같은 주소로 다시 열면 이어서 할 수 있음). 끝나면 CSV로 내려받는다.</p>
+  <div class="toolbar"><button onclick="exportCSV()">결과 CSV 내려받기</button><button class="sec" onclick="showPreview()">미리보기</button><button class="sec" onclick="resetAll()">판정 모두 지우기</button></div>
+  <pre id="preview" class="small" style="white-space:pre-wrap"></pre>
+ </div>
+</div>
+<div class="panel"><h2>5. 후보 확인 (위에서부터 SUVmax 순) <span class="small" id="progress"></span></h2>
+ <p class="small">각 후보에 참 / 거짓 / 불확실 중 하나를 고르고, 점수를 준 병변이면 "index lesion"을 켠다. 빨간 윤곽 = 이 후보의 모델 마스크, 주황 윤곽 = 다른 후보, 가장자리 눈금이 가리키는 곳 = SUVmax 위치. 오른쪽 회색 칸의 LLM 의견은 참고용이다.</p>
+ <div id="cards"></div>
+</div>
+</main>
+<script>
+const DATA = /*__DATA__*/null;
+window.DATA = DATA;
+const cards = DATA.cards, M = DATA.mip;
+const KEY = 'fl-review:' + DATA.case;
+const VERD = {focal_lesion: '국소 골병변', diffuse: '미만성 골수 섭취', extramedullary: '골수외 병변', physiologic: '생리적 섭취', false_positive: '위양성 (염증·골절 등)', unsure: '불확실'};
+let state = {labels: {}, index: null, added: [], reader: '', memo: {}, llmAgree: {}, hideLlm: true};
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = Object.assign(state, s); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const r1 = v => Math.round(v * 10) / 10;
+
+document.getElementById('pid').value = DATA.case;
+document.getElementById('note').textContent = DATA.note;
+const rd = document.getElementById('reader');
+rd.value = state.reader || '';
+rd.addEventListener('input', () => { state.reader = rd.value; save(); });
+const hl_ = document.getElementById('hidellm');
+hl_.checked = state.hideLlm;
+hl_.addEventListener('change', () => { state.hideLlm = hl_.checked; save(); render(); });
+document.getElementById('mip').src = M.src;
+
+// 복셀 (i,k) <-> MIP 화면 비율. MIP 는 좌우·상하가 뒤집혀 있다(환자 오른쪽 = 화면 왼쪽, 머리 = 위).
+const fx = i => (M.nx - 0.5 - i) / M.nx, fy = k => (M.nz - 0.5 - k) / M.nz;
+const depth = (() => { const b = atob(M.depth), u = new Uint8Array(b.length); for (let n = 0; n < b.length; n++) u[n] = b.charCodeAt(n); return new Uint16Array(u.buffer); })();
+function mipToMM(fxv, fyv) {
+  // 클릭한 점 -> (i, k), 그 MIP 값이 나온 깊이 j -> RAS mm
+  const col = Math.min(M.nx - 1, Math.max(0, Math.floor(fxv * M.nx))), row = Math.min(M.nz - 1, Math.max(0, Math.floor(fyv * M.nz)));
+  const v = [M.nx - 1 - col, depth[row * M.nx + col], M.nz - 1 - row, 1];
+  return M.aff.map(rw => rw.reduce((s, a, n) => s + a * v[n], 0));
+}
+
+function llmBox(c) {
+  const op = c.llm;
+  if (!op) return `<div class="llm none"><b>LLM 의견</b><br>아직 없음</div>`;
+  if (state.hideLlm && !state.labels[c.id]) return `<div class="llm wait"><b>LLM 의견</b><br>내 판정을 먼저 고르면 보인다</div>`;
+  const ag = state.llmAgree[c.id] || '', m = DATA.llm_meta || {};
+  return `<div class="llm"><b>LLM 의견</b> <span class="small">${esc(m.model || '')}</span><br>
+    판단: <b>${VERD[op.verdict] || esc(op.verdict)}</b>${op.confidence != null ? ` · 확신 ${op.confidence}` : ''}<br>
+    <span class="small">${esc(op.rationale || '')}</span>
+    <div class="q">LLM은 이렇게 판단했습니다. 맞습니까?</div>
+    <div class="btns"><button class="small ${ag === 'agree' ? 'on' : ''}" onclick="setAgree(${c.id},'agree')">맞다</button><button class="small ${ag === 'disagree' ? 'on' : ''}" onclick="setAgree(${c.id},'disagree')">아니다</button></div></div>`;
+}
+
+function render() {
+  const el = document.getElementById('cards'); el.innerHTML = '';
+  cards.forEach(c => {
+    const lab = state.labels[c.id] || '';
+    el.insertAdjacentHTML('beforeend', `<div class="card" id="card${c.id}" onmouseenter="hl(${c.id},true)" onmouseleave="hl(${c.id},false)">
+      <div class="imgs">
+       <figure><img src="${c.ax}"><figcaption>PET 축상면</figcaption></figure>
+       <figure><img src="${c.co}"><figcaption>PET 관상면</figcaption></figure>
+       <figure><img src="${c.sa}"><figcaption>PET 시상면</figcaption></figure>
+       <figure><img src="${c.ct}"><figcaption>CT 축상면</figcaption></figure>
+      </div>
+      <div class="row"><div class="meta"><b>후보 ${c.id}</b> <span class="small">(실험 기록 #${c.record_no} · Slicer 마커 ${DATA.case}-${String(c.record_no).padStart(2, '0')})</span><br>
+       SUVmax <b>${c.suvmax}</b> · SUVpeak ${c.suvpeak} · SUVmean ${c.suvmean}<br>부피 ${c.vol} mL · CT ${c.hu} HU<br>
+       ${c.site ? `위치 <b>${esc(c.site)}</b>${c.r_liver != null ? ` · 간 대비 ${c.r_liver} · 혈액풀 대비 ${c.r_mbp} · 규칙 DS ${c.ds_rule}` : ''}<br>` : ''}
+       <span class="small">위치 RAS (x, y, z mm) = ${c.mm.join(', ')}</span>
+       <div class="btns">
+        <button class="${lab === 'true' ? 'on' : ''}" onclick="setLab(${c.id},'true')">참 (골병변)</button>
+        <button class="${lab === 'false' ? 'on' : ''}" onclick="setLab(${c.id},'false')">거짓 (생리적/기타)</button>
+        <button class="${lab === 'unsure' ? 'on' : ''}" onclick="setLab(${c.id},'unsure')">불확실</button>
+        <button class="${state.index === c.id ? 'on' : ''}" onclick="setIndex(${c.id})">index lesion</button>
+        <button class="sec" onclick="goto3d(${c.id})">Slicer 에서 보기</button>
+       </div>
+       <input class="memo" placeholder="메모 (예: 우 7번 늑골, 갈색지방)" value="${esc(state.memo[c.id] || '')}" oninput="setMemo(${c.id},this.value)">
+      </div>${llmBox(c)}</div></div>`);
+  });
+  drawMarks();
+  const n = cards.filter(c => state.labels[c.id]).length;
+  document.getElementById('progress').textContent = `${n} / ${cards.length} 판정`;
+}
+function setLab(id, v) { state.labels[id] = (state.labels[id] === v) ? '' : v; save(); render(); }
+function setIndex(id) { state.index = (state.index === id) ? null : id; save(); render(); }
+function setMemo(id, v) { state.memo[id] = v; save(); }
+function setAgree(id, v) { state.llmAgree[id] = (state.llmAgree[id] === v) ? '' : v; save(); render(); }
+function hl(id, on) {
+  document.getElementById('card' + id).classList.toggle('hl', on);
+  const m = document.getElementById('cand' + id); if (m) m.classList.toggle('hl', on);
+}
+function goto3d(id) { slicerGoto(cards.find(x => x.id === id).mm); }
+
+// 3D Slicer: review_server.py(맥 판독 폴더)가 Slicer 를 띄우고, Slicer 가 찍은 점을 <case>_viewer/slicer_points.csv 에 쓴다
+const SRV = location.protocol.startsWith('http'), smsg = document.getElementById('slicer-msg');
+function slicerReady() {
+  if (!DATA.slicer) { smsg.textContent = 'Slicer 용 파일이 없다(--no-viewer 로 만든 페이지).'; return false; }
+  if (!SRV) { smsg.textContent = '맥 판독 폴더에서 python3 review_server.py 로 연 주소(http://127.0.0.1:8765/…)에서만 동작한다. 지금은 파일로 열려 있다.'; return false; }
+  return true;
+}
+async function post(path) {
+  if (!slicerReady()) return;
+  try { const r = await fetch(path, {method: 'POST'}); smsg.textContent = await r.text(); }
+  catch (e) { smsg.textContent = 'review_server.py 에 닿지 않는다: ' + e.message; }
+}
+function openSlicer() { post('/slicer/' + DATA.case); }
+function slicerGoto(mm) { if (DATA.slicer && SRV) post(`/goto/${DATA.case}?x=${mm[0]}&y=${mm[1]}&z=${mm[2]}`); }
+async function loadSlicerPoints() {
+  if (!slicerReady()) return;
+  const r = await fetch(`${DATA.case}_viewer/slicer_points.csv?t=${Date.now()}`);
+  if (!r.ok) { smsg.textContent = '아직 Slicer 에서 찍은 점이 없다.'; return; }
+  const pts = (await r.text()).trim().split(/\r?\n/).slice(1).filter(Boolean).map(l => {
+    const [, x, y, z, st] = l.split(',');
+    return {x: +x, y: +y, z: +z, memo: st ? 'Slicer: ' + st : 'Slicer', source: 'slicer'};
+  });
+  state.added = state.added.filter(a => a.source !== 'slicer').concat(pts); save(); drawMarks();
+  smsg.textContent = `Slicer 점 ${pts.length}개를 3번 목록에 합쳤다(이전에 불러온 Slicer 점은 바꿔 넣음).`;
+}
+
+function drawMarks() {
+  document.querySelectorAll('.dot,.cand').forEach(d => d.remove());
+  const wrap = document.getElementById('mipwrap');
+  cards.forEach(c => {
+    const d = document.createElement('div');
+    d.className = 'cand' + (state.labels[c.id] ? ' done' : ''); d.id = 'cand' + c.id;
+    d.style.left = (fx(c.vox[0]) * 100) + '%'; d.style.top = (fy(c.vox[2]) * 100) + '%';
+    d.innerHTML = `<span>${c.id}</span>`; wrap.appendChild(d);
+  });
+  const tb = document.getElementById('added'); tb.innerHTML = '';
+  state.added.forEach((a, i) => {
+    if (a.fx != null) {
+      const d = document.createElement('div'); d.className = 'dot';
+      d.style.left = (a.fx * 100) + '%'; d.style.top = (a.fy * 100) + '%'; wrap.appendChild(d);
+    }
+    tb.insertAdjacentHTML('beforeend', `<tr><td>A${i + 1}</td><td>${a.x}</td><td>${a.y ?? ''}</td><td>${a.z}</td><td>${esc(a.memo)}</td>
+      <td><button class="small" onclick="slicerGoto([${a.x},${a.y ?? 0},${a.z}])">Slicer</button></td></tr>`);
+  });
+}
+
+let addMode = false;
+function toggleAdd() {
+  addMode = !addMode;
+  document.getElementById('addmode').textContent = '누락 병변 추가 모드: ' + (addMode ? '켜짐 (MIP 클릭)' : '꺼짐');
+  document.getElementById('mipwrap').classList.toggle('adding', addMode);
+}
+function addLesion(mm, extra) {
+  const memo = prompt('병변 메모 (예: Lt 7th rib)');
+  if (memo === null) return;
+  state.added.push(Object.assign({x: r1(mm[0]), y: r1(mm[1]), z: r1(mm[2]), memo}, extra)); save(); drawMarks();
+}
+document.getElementById('mip').addEventListener('click', e => {
+  const r = e.target.getBoundingClientRect();
+  const f = {fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height};
+  const mm = mipToMM(f.fx, f.fy);
+  slicerGoto(mm);
+  if (addMode) addLesion(mm, Object.assign(f, {source: 'mip'}));
+});
+function clearAdded() { state.added = []; save(); drawMarks(); }
+function resetAll() {
+  if (!confirm('이 케이스의 판정·메모·index·LLM 동의·누락 병변을 모두 지운다. 계속할까?')) return;
+  state = {labels: {}, index: null, added: [], reader: state.reader, memo: {}, llmAgree: {}, hideLlm: state.hideLlm}; save(); render();
+}
+
+function rows() {
+  const pid = document.getElementById('pid').value, r = rd.value, t = new Date().toISOString(), lm = (DATA.llm_meta || {}).model || '';
+  const out = [['research_id', 'reader', 'type', 'candidate_id', 'record_no', 'x_mm', 'y_mm', 'z_mm', 'suvmax', 'suvpeak', 'vol_ml', 'ct_hu',
+    'label', 'is_index', 'memo', 'llm_verdict', 'llm_confidence', 'llm_agree', 'llm_model', 'source', 'model', 'timestamp']];
+  cards.forEach(c => out.push([pid, r, 'candidate', c.id, c.record_no, c.mm[0], c.mm[1], c.mm[2], c.suvmax, c.suvpeak, c.vol, c.hu,
+    state.labels[c.id] || '', state.index === c.id ? 1 : 0, state.memo[c.id] || '',
+    c.llm ? c.llm.verdict : '', c.llm && c.llm.confidence != null ? c.llm.confidence : '', state.llmAgree[c.id] || '', c.llm ? lm : '', 'model_mask', DATA.model, t]));
+  state.added.forEach((a, i) => out.push([pid, r, 'added', `A${i + 1}`, '', a.x, a.y ?? '', a.z, '', '', '', '', 'true', 0, a.memo, '', '', '', '', a.source || 'mip', DATA.model, t]));
+  return out;
+}
+function exportCSV() {
+  const csv = rows().map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const b = new Blob(['\ufeff' + csv], {type: 'text/csv'}), a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = 'FL_labels_' + document.getElementById('pid').value.split(' ')[0] + '.csv'; a.click();
+}
+function showPreview() { document.getElementById('preview').textContent = rows().map(r => r.join(' | ')).join('\n'); }
+render();
+</script>
+</body></html>

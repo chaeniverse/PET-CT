@@ -1,0 +1,56 @@
+# Git 작업 흐름
+
+PR 을 열면 `.github/pull_request_template.md` 가 기본 양식으로 쓰인다.
+
+## 브랜치
+
+- 기준 브랜치는 `main`. 작업은 `main` 에서 분기해 PR 로 병합한다.
+- 이름은 `타입/간단한-설명`.
+
+| 접두사 | 용도 | 예시 |
+|---|---|---|
+| `feat/` | 새 기능·파이프라인 단계 | `feat/fl-ds-calc` |
+| `fix/` | 버그 수정 | `fix/suv-time-ref` |
+| `exp/` | 실험 기록 | `exp/autopet3-pilot` |
+| `docs/` | 문서 | `docs/data-inventory` |
+| `refactor/` | 동작 변경 없는 구조 개선 | `refactor/io-utils` |
+| `chore/` | 설정·환경 | `chore/init-scaffold` |
+| `test/` | 테스트 | `test/suv-factor` |
+
+## 커밋 메시지
+
+Conventional Commits, 소문자 타입. `<타입>: <요약>` 한 줄, 명령형·현재형.
+
+- 예: `docs: autoPET III 추론 가이드 추가`, `exp: 파일럿 2명 추론 결과 기록`
+
+## Issue
+
+- 며칠 이상 걸리거나 나중에 할 큰 일에만 만든다(예: 코호트 변환·추론, FL-DS 산출). 작은 수정은 issue 없이 바로 브랜치를 딴다.
+- issue 는 `.github/ISSUE_TEMPLATE/task.md` 로 쓰고, 그 일을 끝내는 PR 본문에 `Closes #번호` 를 적는다.
+
+## PR
+
+- 브랜치 하나 = PR 하나 = 의미 있는 변경 한 덩어리(기능 하나, 가이드 하나, 버그 하나). 요약이 한 문장으로 안 되면 나눈다.
+- 크기: 커밋 1–5개, 바뀐 줄 대략 400줄 이하를 기준으로 한다. 커밋이 10개를 넘거나 주제가 둘 이상 섞이면 PR 을 나눈다.
+- 커밋은 논리 단위로 나눈다. 예: 코드 1개, 문서 1개, 검사에서 고친 것 1개.
+- 작은 문서 수정(오타·경로·문구)은 따로 PR 을 만들지 않고 진행 중인 PR 에 넣는다. 진행 중인 PR 이 없으면 다음 PR 에 넣는다.
+- PR 위에 PR 을 쌓지 않는다. 앞 PR 을 머지한 뒤 main 에서 다음 브랜치를 딴다.
+- 머지한 브랜치는 지운다(PR 화면의 "Delete branch").
+- 제목은 커밋과 같은 `타입: 요약` 형식.
+- 본문은 템플릿(요약·목적·주요 변경 사항·테스트 체크리스트)을 채운다. **테스트 체크리스트의 데이터 보호 항목은 빼지 않는다.**
+
+## 커밋 전 점검
+
+```bash
+git status
+git diff --cached --name-only | grep -Ei '\.(dcm|nii(\.gz)?|mha|nrrd|npy|npz|pth|pt|csv|xlsx?|zip)$' && echo "STOP: 데이터 파일이 스테이징됨"
+```
+
+직접 친 코드는 커밋 전에 Claude Code 에서 `/check-typed` 로 검사한다([스킬](../../.claude/skills/check-typed/SKILL.md)).
+채팅에서 받은 원본과 줄 단위로 대조하고, 문법(`bash -n`·`ast`), 린트(`ruff`·`shellcheck`), 데이터 파일 스테이징을 본다. 고칠 곳만 알려 주고 파일은 고치지 않는다.
+
+## 커밋하면 안 되는 것
+
+- 환자 영상·마스크·임상자료·가중치·압축파일 (`.gitignore` 로 막혀 있지만 `git add -f` 금지)
+- 노트북 출력 셀(식별정보가 찍힐 수 있음) — 출력 지우고 커밋
+- 비밀키·토큰·`.env`
