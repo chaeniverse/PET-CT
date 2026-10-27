@@ -250,9 +250,17 @@ def save(arr, aff, path, slope=None):
     nib.save(img, str(path))
 
 
-def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, names=None, ct_window=(-200, 1200), suv_max=8.0):
+def cached_ok(path, shape, aff):
+    """캐시 파일이 지금 묶음 배수로 만들 격자(shape·affine)와 같은지. 상한(max_vox)이 바뀌면 다시 만들게 한다."""
+    if not path.exists():
+        return False
+    img = nib.load(str(path))
+    return tuple(img.shape[:3]) == tuple(shape) and np.allclose(img.affine, aff, atol=1e-3)
+
+
+def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=170e6, labels=None, names=None, ct_window=(-200, 1200), suv_max=8.0):
     """Slicer 용 파일을 만들고 {"ct","suv","mask"[,"labels"]} 경로와 묶음 배수 f 를 돌려준다.
-    CT·SUV·마스크는 입력보다 새 파일이 있으면 다시 만들지 않는다. 후보 목록·Slicer 스크립트는 늘 쓴다.
+    CT·SUV·마스크는 입력보다 새롭고 지금 묶음 배수의 격자(shape·affine)와 같은 파일이 있으면 다시 만들지 않는다. 후보 목록·Slicer 스크립트는 늘 쓴다.
     cands = [{"id", "record_no", "mm"}, …] (페이지 카드 번호와 같다).
     labels 를 주면 구조 라벨·이름표를 쓰고, 주지 않으면 예전에 만든 구조 라벨 파일을 지운다(옛 분할이 맥으로 가지 않게)."""
     vdir = Path(out_dir) / f"{case}_viewer"
@@ -262,6 +270,7 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     n = int(np.prod(seg_img.shape[:3]))
     f = max(1, math.ceil((n / max_vox) ** (1 / 3)))
     aff = scaled_affine(seg_img.affine, f)
+    shape = [s // f for s in seg_img.shape[:3]]      # block_reduce 결과 크기
     vdir.mkdir(parents=True, exist_ok=True)
     script = SLICER_SCRIPT
     for k, v in (("__CT_MIN__", ct_window[0]), ("__CT_MAX__", ct_window[1]), ("__SUV_MAX__", suv_max), ("__SUV_STEP__", SUV_STEP)):
@@ -276,7 +285,7 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     else:
         for k in ("labels.nii.gz", "labels.ctbl"):
             (vdir / k).unlink(missing_ok=True)
-    if all(p.exists() and p.stat().st_mtime > newest_in for p in paths.values()) \
+    if all(cached_ok(paths[k], shape, aff) and paths[k].stat().st_mtime > newest_in for k in ("ct", "suv", "mask")) \
             and nib.load(str(paths["suv"])).get_data_dtype() == np.int16:   # 예전 float32 SUV 파일이면 다시 만든다
         return paths, f
 
