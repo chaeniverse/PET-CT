@@ -8,6 +8,7 @@
 
 출력: <out>/<case>_viewer/  (저장소 밖. 영상이므로 맥 판독 폴더 밖으로 옮기지 않는다)
   ct·suv·mask.nii.gz, candidates.json(후보 번호·RAS 좌표), open_in_slicer.py
+  그리고 <out>/<case>_Slicer열기.command (맥 Finder 에서 더블클릭하면 이 폴더의 open_in_slicer.py 로 Slicer 가 열린다)
   구조 라벨이 있으면 labels.nii.gz(라벨 번호는 섞이면 안 되므로 묶을 때 가운데 복셀을 그대로 쓴다)와 이름표 labels.ctbl
   (맥 판독 폴더로 보내는 예외, data-governance.md §2)
 Slicer 에서 찍은 점은 Slicer 가 같은 폴더의 slicer_points.csv 에 쓴다(맥에서만 생긴다).
@@ -42,10 +43,10 @@ def label_colors(n):
 
 
 SLICER_SCRIPT = r'''# 3D Slicer 로 이 폴더의 영상을 연다(make_review_html.py 가 만든 파일, 고치지 않는다).
-# 보통은 판독 페이지의 "Slicer 로 보기"(review_server.py)가 연다. 손으로 열 때(맥 터미널):
+# 보통은 판독 폴더의 <case>_Slicer열기.command 를 Finder 에서 더블클릭해 연다. 터미널로 열 때:
 #   cd <판독 폴더>/<case>_viewer && /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
-# 누락 병변: P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓴다(페이지가 불러간다).
-# 페이지에서 카드의 "Slicer 에서 보기"나 MIP 를 누르면 goto.json 이 바뀌고, 이 창이 그 위치로 간다.
+# 누락 병변: P 키로 점 찍기를 켜고 끈다. 찍기·옮기기·지우기를 할 때마다 slicer_points.csv 에 쓴다(페이지에서 파일로 고른다).
+# 구조 라벨(TotalSegmentator) 색은 처음에 숨겨 둔다. L 키로 켜고 끈다. 숨겨도 Data Probe·찍은 점에는 구조 이름이 나온다.
 import csv
 import json
 import os
@@ -81,7 +82,7 @@ lab = colors = None
 if os.path.exists(f("labels.nii.gz")):
     colors = slicer.util.loadColorTable(f("labels.ctbl"))
     lab = slicer.util.loadLabelVolume(f("labels.nii.gz"), {"colorNodeID": colors.GetID()})
-slicer.util.setSliceViewerLayers(background=ct, foreground=suv, foregroundOpacity=0.5, label=lab, labelOpacity=0.3)
+slicer.util.setSliceViewerLayers(background=ct, foreground=suv, foregroundOpacity=0.5, label=lab, labelOpacity=0.0)
 slicer.app.layoutManager().setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
 lesion.CreateClosedSurfaceRepresentation()
 
@@ -150,28 +151,30 @@ def toggle_place():
 place_key = qt.QShortcut(qt.QKeySequence("P"), slicer.util.mainWindow())
 place_key.connect("activated()", toggle_place)
 
-# 페이지에서 보낸 위치로 이동(goto.json 이 바뀌면)
-GOTO = f("goto.json")
-last_goto = [os.path.getmtime(GOTO) if os.path.exists(GOTO) else 0.0]
+# L 키: 구조 라벨 색 켜기/끄기(처음에는 꺼 둠)
+def toggle_labels():
+    if lab is None:
+        return
+    for name in slicer.app.layoutManager().sliceViewNames():
+        comp = slicer.app.layoutManager().sliceWidget(name).sliceLogic().GetSliceCompositeNode()
+        comp.SetLabelOpacity(0.0 if comp.GetLabelOpacity() > 0 else 0.4)
 
 
-def follow_page():
-    if os.path.exists(GOTO) and os.path.getmtime(GOTO) != last_goto[0]:
-        last_goto[0] = os.path.getmtime(GOTO)
-        with open(GOTO, encoding="utf-8") as fh:
-            x, y, z = json.load(fh)["ras"]
-        slicer.modules.markups.logic().JumpSlicesToLocation(x, y, z, True)
-
-
-goto_timer = qt.QTimer()
-goto_timer.timeout.connect(follow_page)
-goto_timer.start(500)
+label_key = qt.QShortcut(qt.QKeySequence("L"), slicer.util.mainWindow())
+label_key.connect("activated()", toggle_labels)
 if cands.GetNumberOfControlPoints():
     p0 = [0.0, 0.0, 0.0]
     cands.GetNthControlPointPositionWorld(0, p0)
     slicer.modules.markups.logic().JumpSlicesToLocation(p0[0], p0[1], p0[2], True)
-slicer.util.delayDisplay("P 키: 누락 병변 점 찍기 켜기/끄기. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
+slicer.util.delayDisplay("P 키: 누락 병변 점 찍기 켜기/끄기 · L 키: 구조 라벨 색 켜기/끄기. 찍은 점은 페이지의 'Slicer 에서 찍은 점 불러오기'로 가져간다.", 4000)
 '''
+
+
+COMMAND = """#!/bin/sh
+# __CASE__ 를 3D Slicer 로 연다(make_review_html.py 가 만든 파일). 맥 Finder 에서 더블클릭한다.
+cd "$(dirname "$0")/__CASE___viewer" || exit 1
+exec /Applications/Slicer.app/Contents/MacOS/Slicer --python-script open_in_slicer.py
+"""
 
 
 def write_labels(vdir, labels, names, f, aff):
@@ -225,6 +228,9 @@ def write(case, f_ct, f_suv, f_seg, out_dir, cands, max_vox=30e6, labels=None, n
     for name, text in (("open_in_slicer.py", script), ("candidates.json", json.dumps(cands, ensure_ascii=False))):
         (vdir / name).write_text(text, encoding="utf-8")
         (vdir / name).chmod(0o600)
+    command = Path(out_dir) / f"{case}_Slicer열기.command"     # 맥 Finder 에서 더블클릭하면 터미널이 이 스크립트를 실행한다
+    command.write_text(COMMAND.replace("__CASE__", case), encoding="utf-8")
+    command.chmod(0o700)
     if labels is not None:
         paths["labels"] = write_labels(vdir, labels, names, f, aff)
     else:

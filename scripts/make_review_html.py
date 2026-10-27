@@ -17,9 +17,9 @@
 저장소 안에는 쓰지 않으며(시도하면 멈춘다), 커밋·업로드·공유 폴더 복사를 하지 않는다.
 화면 출력은 케이스 가명과 수치뿐이다.
 
-3D 보기(3D Slicer, 맥): Slicer 용 NIfTI·후보 목록·open_in_slicer.py 를 <out>/<case>_viewer/ 에 만들고(viewer_volumes.py),
-review_server.py 를 <out>/ 에 복사한다. 맥 판독 폴더에서 python3 review_server.py 로 열면 페이지 버튼으로 Slicer 를 띄우고,
-Slicer 에서 찍은 누락 병변 점을 페이지로 불러온다. 페이지 안에는 3D 영상을 넣지 않는다.
+3D 보기(3D Slicer, 맥): Slicer 용 NIfTI·후보 목록·open_in_slicer.py 를 <out>/<case>_viewer/ 에, Finder 에서 더블클릭하는
+<out>/<case>_Slicer열기.command 를 만든다(viewer_volumes.py). 페이지는 HTML 을 더블클릭해 열고, Slicer 에서 찍은 누락 병변 점은
+페이지의 파일 선택으로 불러온다. 서버는 쓰지 않고, 페이지 안에는 3D 영상을 넣지 않는다.
 LLM 의견(llm_opinions.py):
   --llm-input-only      HTML 대신 VLM 에 줄 후보 그림(<base>/llm_input/<case>/)과 빈 의견 틀(<base>/llm/<case>_llm.json)만 만든다
   --llm-opinion <폴더>  그 폴더의 <case>_llm.json 을 카드 오른쪽에 얹는다. 주지 않으면 LLM 칸은 비운다
@@ -32,7 +32,6 @@ import base64
 import io
 import json
 import os
-import shutil
 import sys
 from pathlib import Path
 
@@ -279,12 +278,8 @@ def main():
     if args.llm_input_only:
         print(f"\n다음: llm_review.py 로 의견을 받은 뒤 make_review_html.py ... --llm-opinion {args.llm_opinion}")
         return
-    server = Path(__file__).with_name("review_server.py")
-    if server.exists():           # 맥 판독 폴더로 같이 가도록 review 폴더에 둔다(맥에는 저장소가 없다)
-        shutil.copy2(server, out_dir / server.name)
-        print(f"\n맥 판독 폴더로 받은 뒤: python3 review_server.py → http://127.0.0.1:8765/{args.cases[0]}_후보확인.html")
-    else:
-        print(f"\n{server.name} 가 없어 review 폴더에 복사하지 못했다. 페이지는 열리지만 Slicer 버튼은 동작하지 않는다.")
+    (out_dir / "review_server.py").unlink(missing_ok=True)    # 예전 방식(로컬 서버) 파일이 맥으로 가지 않게
+    print(f"\n맥 판독 폴더로 받은 뒤 {args.cases[0]}_후보확인.html 을 더블클릭해 연다. Slicer 는 {args.cases[0]}_Slicer열기.command 를 더블클릭한다.")
 
 
 if __name__ == "__main__":
