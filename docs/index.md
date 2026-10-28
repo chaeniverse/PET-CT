@@ -5,7 +5,7 @@
 | **현재 상태** | [status.md](status.md) | 핸드오프 — 현재 위치, 다음 할 일, 알려진 함정. 이어받을 때 가장 먼저 |
 | 기준(SoT) | [sot.md](sot.md) | 범위·파이프라인 단계·저장소 경계 |
 | 데이터 거버넌스 | [data-governance.md](data-governance.md) | 데이터가 어디에 있고, 어디로 가면 안 되는지 |
-| 결정 기록 | [decisions.md](decisions.md) | 주요 선택과 그 이유 |
+| 결정 기록 | [decisions.md](decisions.md) | 지금 유효한 결정(한 줄씩)과 공개 코드 출처 |
 | 실행 환경 | [environment.md](environment.md) | 워크스테이션 사양, GPU·PyTorch 주의점 |
 | 원자료 | [data/index.md](data/index.md) | 가명 환자별 시리즈 구성·변환 시 주의점 |
 | 모델 | [models/index.md](models/index.md) | 비교 대상 모델과 진행 상태 |
@@ -16,4 +16,4 @@
 ## 우선순위
 
 - 데이터 규칙([data-governance.md](data-governance.md))이 다른 모든 문서보다 앞선다.
-- 절차가 바뀌면 해당 가이드와 [decisions.md](decisions.md)를 같은 변경 단위에서 함께 고친다.
+- 절차가 바뀌면 해당 가이드와 [decisions.md](decisions.md) 표의 그 줄을 같은 변경 단위에서 함께 고친다. 바뀐 경위는 PR 본문에 적는다.

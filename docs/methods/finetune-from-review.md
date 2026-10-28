@@ -40,7 +40,7 @@ nnU-Net 미세조정에는 복셀 단위 정답 마스크가 필요하다. CSV �
    - autopet-3-submission README 의 Preprocessing·Extract organs(TotalSegmentator)·merge 단계가 이때 필요해진다.
      이 트레이너는 장기 분할을 보조 목표로 학습하기 때문이다.
    - 공개 가중치에서 출발하는 미세조정은 nnU-Net 의 사전학습 가중치 옵션(`nnUNetv2_train … -pretrained_weights <checkpoint>`)으로 한다.
-     학습률·에폭 등 세부 설정은 그때 레포 문서를 확인해 [decisions.md](../decisions.md)에 남긴다.
+     학습률·에폭 등 세부 설정은 그때 레포 문서를 확인해 [decisions.md](../decisions.md) 표에 한 줄로 남긴다.
 6. 평가: 평가용 환자에서 공개 가중치와 미세조정 가중치를 같은 지표로 비교한다.
    지표는 병변 단위 민감도, 환자당 위양성 수, index lesion 검출 여부, FL-DS 일치도다.
 
