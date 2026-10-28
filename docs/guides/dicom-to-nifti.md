@@ -59,6 +59,6 @@ ls ~/autopet3/input_series        # P01_0000, P01_0001, P02_0000, P02_0001
 - 파일럿(P01·P02)은 `work_series`·`input_series`·`output_series` 에 쓰고, `work`·`input`·`output` 은 코호트(C###)용이다.
   코호트를 변환할 때는 `COMMON` 의 폴더를 `work`·`input` 으로 바꾼다.
 - 각 케이스 `~/autopet3/work_series/<case>/conversion_log.json`(코호트는 `work/<case>/`) 에서 `ctres_suv_same_grid: true`, SUV 분포를 확인한다.
-- SUV 는 SeriesTime 기준(`--suv-time series`)으로 만든다(2026-10-22 결정, [decisions.md](../decisions.md)).
+- SUV 는 SeriesTime 기준(`--suv-time series`)으로 만든다([decisions.md](../decisions.md) "SUV 기준 시각").
   TCIA 원본(acquisition)은 폴더에서 처음 잡힌 PET 파일 1장의 AcquisitionTime 을 써서 컴퓨터마다 결과가 달라질 수 있다.
   로그의 `suv_time_reference` 가 `series` 인지 확인한다. acquisition 대비 비율은 `suv_ratio_series_over_acquisition` 에 남는다.
