@@ -14,7 +14,7 @@ autoPET III LesionTracer 가중치 개선에 쓰는 경로를 정리한다. 아�
 | `is_index`, `memo` | index lesion 여부, 부위 메모 | 평가·보고 |
 | `llm_verdict`, `llm_agree` | LLM 의견과 그에 대한 전문의 동의 | 학습에는 쓰지 않음(LLM 평가용) |
 
-CSV 는 표 파일이라 저장소에 올리지 않는다(`.gitignore`). 워크스테이션 작업 영역에 둔다.
+CSV 는 표 파일이라 저장소에 올리지 않는다(`.gitignore`). 워크스테이션 `~/autopet3/labels/` 에 둔다([데이터 거버넌스](../data-governance.md) §2).
 
 ## 2. CSV 만으로 바로 학습할 수는 없다
 
@@ -35,7 +35,7 @@ nnU-Net 미세조정에는 복셀 단위 정답 마스크가 필요하다. CSV �
 2. CSV → 정답 마스크 변환(2절의 자동 부분). 판정 CSV 가 몇 개 쌓이면 연결 스크립트로 만든다(사용자 승인 후).
 3. 누락 병변과 윤곽 수정은 Slicer 에서 그린다. 결과는 `labelsTr` 형식 NIfTI 로 저장한다(저장소 밖).
 4. nnU-Net 데이터셋 구성: `imagesTr/<case>_0000.nii.gz`(CTres), `<case>_0001.nii.gz`(SUV), `labelsTr/<case>.nii.gz`, `dataset.json`.
-   입력은 추론 때와 똑같이 TCIA_processing 변환(AcquisitionTime 기준 SUV)을 쓴다.
+   입력은 추론 때와 똑같이 TCIA_processing 변환(SeriesTime 기준 SUV, `--suv-time series`)을 쓴다.
 5. 전처리와 학습은 공개 레포의 공식 명령을 쓴다. 새 모델 코드는 만들지 않는다.
    - autopet-3-submission README 의 Preprocessing·Extract organs(TotalSegmentator)·merge 단계가 이때 필요해진다.
      이 트레이너는 장기 분할을 보조 목표로 학습하기 때문이다.

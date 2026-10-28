@@ -43,7 +43,7 @@ cd ~/PET-CT
 
 역할 나눔(2026-10-22): 코드·문서·커밋은 워크스테이션 `~/PET-CT` 에서만 하고, 맥은 보기와 판정만 한다.
 맥 판독 폴더는 `~/Library/CloudStorage/Dropbox/Work/PIPET/과제/혈액내과/PET-MRD/autopet_review/` 이고,
-판정 CSV 는 맥 판독 폴더에만 둔다(워크스테이션·저장소로 보내지 않는다). CSV 를 요약해 실험 기록에 옮기는 방법은 아직 정하지 않았다.
+판정 CSV 는 맥 판독 폴더에 저장하고, 판독이 끝나면 워크스테이션 `~/autopet3/labels/` 로 보낸다(2026-10-28, 미세조정·평가용). 저장소·다른 클라우드에는 두지 않는다.
 맥 로컬 도구 `PET-MRD/tools/petreview.sh`(저장소 밖, fetch·open·collect·status·stop)가 아래 명령들을 묶어 둔 것이다.
 도구 없이 손으로 할 때(맥 터미널, zsh):
 
@@ -52,8 +52,13 @@ WS=chlee@pipet-cmccpt          # 연구실 안이면 chlee@192.168.0.251
 DST="$HOME/Library/CloudStorage/Dropbox/Work/PIPET/과제/혈액내과/PET-MRD/autopet_review"
 rsync -av "${WS}:autopet3/review/" "$DST/" && chmod -R go-rwx "$DST"
 open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finder 에서 HTML 을 더블클릭해도 된다(서버 필요 없음)
-# 판정이 끝나면 "결과 CSV 내려받기" → FL_labels_<case>.csv 를 $DST 에 저장한다
+# 판정이 끝나면 "Slicer 에서 찍은 점 불러오기"로 $DST/<case>_viewer/slicer_points.csv 를 합친 뒤
+# "결과 CSV 내려받기" → FL_labels_<case>.csv 를 $DST 에 저장한다
 # (Chrome 설정 > 다운로드 > "다운로드 전에 각 파일의 저장 위치 확인" 을 켜 두면 바로 $DST 에 저장할 수 있다)
+
+# 워크스테이션으로 보내기(맥 → 워크스테이션 한 방향)
+ssh "$WS" 'mkdir -p ~/autopet3/labels && chmod 700 ~/autopet3/labels'
+rsync -av "$DST"/FL_labels_*.csv "${WS}:autopet3/labels/" && ssh "$WS" 'chmod 600 ~/autopet3/labels/*.csv'
 ```
 
 - 열기: HTML 을 더블클릭(`file://`)해 연다. 서버는 쓰지 않는다(2026-10-27).

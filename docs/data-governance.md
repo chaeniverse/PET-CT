@@ -14,6 +14,7 @@
 |---|---|---|
 | Dropbox 공유 폴더 `PET_MRD` | 원본·공유 결과물 | **읽기 전용.** 쓰기는 사용자 승인 후에만 |
 | 워크스테이션 `chlee/` 작업 영역 | 복사본·중간산출물·결과 | 작업 종료 후 외장하드로 이관 |
+| 워크스테이션 `~/autopet3/labels/` | 맥에서 받은 판정 CSV(`FL_labels_<case>.csv`, Slicer 점을 합친 것)와 그것으로 만든 정답 마스크 | 2026-10-28 사용자 결정(미세조정·평가에 필요). 폴더 700·파일 600, 저장소 밖. 맥 → 워크스테이션 한 방향으로만 옮긴다 |
 | 워크스테이션 `~/autopet3/private/` | 가명 ↔ 원본 대응표 사본 | 2026-10-23 사용자 결정. 폴더 700·파일 600, 저장소 밖. 레지스트리 결합(③단계) 전용 |
 | 외장하드 | 장기 보관 | |
 | 맥 Dropbox `Work/PIPET/과제/혈액내과/PET-MRD/autopet_review/` | 후보 확인 페이지(영상 조각 포함 HTML)·Slicer 용 NIfTI·판정 CSV·Slicer 에서 찍은 점(`<case>_viewer/slicer_points.csv`, 판정 CSV 와 같은 취급) | 2026-10-22 사용자 결정(원격 데스크톱은 WebGL2 가 안 돼 맥에서 판독). 2026-10-26: 페이지 안 3D 영상을 빼고 Slicer 로 본다. 예외(2026-10-26 사용자 결정): `<case>_viewer/` 안의 구조 라벨 `labels.nii.gz`(TotalSegmentator 분할을 PET 격자·뷰어 해상도로 줄인 것)·이름표 `labels.ctbl`·`open_in_slicer.py` 도 둔다. 3D 보기 구조 이름과 맥 3D Slicer 판독용이다. 원본 해상도 분할(`~/autopet3/totalseg/`)은 보내지 않는다 |
