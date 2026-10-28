@@ -22,7 +22,7 @@
 | 판독 페이지 | HTML 을 더블클릭해 연다(서버 없음). 판정은 브라우저에 쌓이고 CSV 로 내려받는다 | 단순하게 | [결과 확인](guides/review-results.md) §2 |
 | 3D 판독 | 맥 3D Slicer. 페이지 "Slicer 로 보기"(petreview:// 연결 앱 → `petreview.sh slicer`), 도구막대 점 찍기(P)·구조 색(L), 3D 칸 SUV MIP, Slicer 용 영상은 PET 원래 해상도(상한 170M 복셀) | 페이지 안 3D 는 작고 도구가 적다 | [결과 확인](guides/review-results.md) §2-2 |
 | 누락 병변 점 | Slicer 점은 `<case>_viewer/slicer_points.csv`(case 열)에 저장하고, 페이지에서 불러와 결과 CSV 에 `source=slicer` 로 합친다 | 더블클릭한 페이지는 옆 파일을 바로 읽을 수 없다 | [결과 확인](guides/review-results.md) §2-2 |
-| 작업 방식 | 브랜치 하나 = PR 하나(커밋 1–5개, 쌓지 않음). 시각화 아닌 코드는 사용자가 치고 check-typed 로 검사, PR 은 Copilot 이 리뷰 | 기록을 깔끔하게. 오타와 설계 문제를 각각 잡는다 | [Git 흐름](guides/git-workflow.md) |
+| 작업 방식 | 브랜치에 변경을 쌓고 사용자가 말할 때만 커밋·푸시·PR(에이전트는 묻기만). PR 은 작업 묶음 단위, Squash and merge. 시각화 아닌 코드는 사용자가 치고 check-typed, PR 은 Copilot 리뷰 | 이력을 읽기 쉽게(main 에는 PR 당 커밋 하나). 오타와 설계 문제를 각각 잡는다 | [Git 흐름](guides/git-workflow.md) |
 | 문서 | 한국어 짧은 평서문. 굵게는 데이터 보호 경고에만 쓴다 | 읽기 쉽게 | [AGENTS](../AGENTS.md) |
 
 ## 공개 코드 출처
