@@ -1,7 +1,7 @@
 # 작업 상태 (핸드오프)
 
 > 작업을 이어받는 에이전트(Claude Code 등)는 이 문서를 가장 먼저 읽는다.
-> 마지막 갱신: 2026-10-28 · 갱신할 때는 날짜와 "현재 위치"·"다음 할 일"을 같이 고친다.
+> 마지막 갱신: 2026-10-29 · 갱신할 때는 날짜와 "현재 위치"·"다음 할 일"을 같이 고친다.
 
 ## 1. 한 줄 요약
 
@@ -68,14 +68,17 @@ autoPET III LesionTracer(nnU-Net ResEnc-L, 5-fold) 공개 가중치로 파일럿
   10-22 판은 깃허브 `chaeniverse/PET-CT-archive` 이력에만 있다(10-23 이후 내용은 없음). 10-26 재실행 결과는 기록하지 않았다. 되살릴 방법은 사용자가 정한다
 - [ ] P01·P02 end-to-end 파일럿 (코호트 100명 전에) — 맥 판독 → 판정 CSV 를 워크스테이션 `~/autopet3/labels/` 로 → 정답 마스크 → 평가·미세조정 경로 시험.
   절차: [guides/review-results.md](guides/review-results.md) §2-1 "맥에서 보기·판정", §2-2 "맥 3D Slicer"
-  - HTML 을 더블클릭해 연다(서버 없음). 판정은 브라우저에 쌓이고, Slicer 점을 불러와 합친 뒤 "결과 CSV 내려받기" 로 `FL_labels_<case>.csv` 를 맥 판독 폴더에 저장한다
-  - 병변별 참 / 거짓(부위·이유) / 불확실, index lesion, 놓친 병변은 Slicer 점(`<case>_viewer/slicer_points.csv`)을 페이지에서 불러와 `source=slicer` 로 합친다
+  - HTML 을 더블클릭해 연다(서버 없음). 판정은 브라우저에 쌓이고, Slicer 점을 불러와 합친 뒤 "결과 CSV 저장"(저장 창, 2026-10-29) 으로 `FL_labels_<case>.csv` 를 맥 판독 폴더에 바로 저장한다
+  - 후보별 참 / 거짓 / 불확실, index lesion. 후보 밖 추가 위치(MIP 클릭·Slicer 점)도 줄마다 참 / 거짓 / 불확실을 고른다. LLM 의견은 참고용(동의 여부 안 받음)
+  - 2026-10-29 페이지를 바꿨다(추가 위치 판정, LLM 동의 제거, 저장 창, 저장 키 v2). 첫 CSV 2개는 이전 형식이라 버리고, 새 페이지에서 처음부터 다시 판정했다
+  - 2026-10-29 새 형식 CSV 2개를 `~/autopet3/labels/` 로 받았다(21열, 모든 줄 판정·좌표 있음). P01 후보 16개(참 10·거짓 4·불확실 2)·추가 5개(참 4·불확실 1), P02 후보 2개(참 1·거짓 1)·추가 4개(참 3·불확실 1). index lesion 은 고르지 않았다.
+  - 2026-10-29 ⑦ 정답 마스크를 만들었다(`~/autopet3/labels/masks/`). P01 병변 19.3 mL·무시 43.7 mL, P02 병변 1.9 mL·무시 26.8 mL. 후보 18개가 모두 모델 마스크 성분과 맞았다. 추가 참 7개 초안(3.4–20.6 mL)은 모두 상자 끝에 닿아 무시(2)로 두었고, P01 A2 초안은 모델 후보 성분과 겹친다. 다음은 추가 참 초안을 Slicer 에서 다시 그릴 곳·방법 정하기
   - 특히 볼 곳: P02 천골 섭취(09-28 규칙 후보, 모델 미검출 — 놓친 병변인지), P01 기록 #02(규칙 후보와 15 mm 거리)
 - [ ] 코호트 100명 일괄 파이프라인 — [issue #4](https://github.com/chaeniverse/PET-CT/issues/4). 단계마다 PR 하나, 가이드·decisions 를 같은 PR 에서 고친다
   - ① 시리즈 고르기(환자별 목록 → 규칙 추천 → `case, ct_desc, pt_desc` 표), PROPCPS 7명 SUV·장비 3종(Vision 600·TruePoint·Discovery 710) 정규화 확인
   - ② 변환(`--suv-time series`, `work`·`input`) ③ 추론 ④ TotalSegmentator ⑤ LLM 소견 → 페이지
   - ⑥ 판정 CSV 를 워크스테이션으로 보내는 규칙 — 2026-10-28 정함(`~/autopet3/labels/`, 데이터 거버넌스·미세조정 문서 수정). 맥 `petreview.sh send` 는 아직 없다(지금은 가이드의 rsync 명령)
-  - ⑦ 판정 CSV → 정답 마스크(누락 병변은 점에서 SUVmax 41% 영역 키우기 초안 → Slicer 확인)
+  - ⑦ 판정 CSV → 정답 마스크 — `scripts/labels_from_review.py`(2026-10-29 P01·P02 실행). 추가 참은 배경 보정 50% 초안을 무시(2)로 두고 Slicer 확인 뒤 병변으로 합친다(합치는 단계는 아직 없음. 정답 마스크는 맥 → 워크스테이션 한 방향 규칙이라 맥 Slicer 로 보내려면 데이터 거버넌스 결정이 먼저다)
 - [ ] 코호트 전 검토 — 전처리·정규화 문헌 조사(검색 키워드: [methods/preprocessing-literature.md](methods/preprocessing-literature.md)), GE Discovery 710 환자의 SeriesTime 이 AcquisitionTime 보다 늦은지 확인, 시리즈 선택 기준 선행연구, 연결 코드에 대응하는 공개 repo 가 있는지, LLM 소견 모델 비교(MedGemma 외 PETAR 가중치 요청, RADIANT-PET, Qwen3-VL 등)
 - [ ] P02 체중 확인 — 헤더 체중이 성인 기준으로 낮다. 틀렸다면 SUV 가 작게 계산돼 병변을 놓쳤을 수 있다.
   실제 값을 받으면 재변환 필요 → 현재 스크립트엔 체중 덮어쓰기 옵션이 없으므로 추가 전 사용자 승인

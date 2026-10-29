@@ -8,11 +8,11 @@ autoPET III LesionTracer 가중치 개선에 쓰는 경로를 정리한다. 아�
 | 열 | 뜻 | 학습에 쓰는 곳 |
 |---|---|---|
 | `research_id`, `record_no` | 케이스 가명, 모델 마스크의 연결성분 번호(실험 기록 표 번호와 같음) | 어느 마스크 성분인지 찾기 |
-| `type` | `candidate`(모델이 낸 후보) / `added`(전문의가 추가한 누락 병변) | 아래 2절 |
-| `label` | `true` / `false` / `unsure` | 성분을 남길지·지울지 |
-| `x_mm`, `y_mm`, `z_mm` | RAS 좌표(Slicer 와 같은 좌표계) | 누락 병변 위치 |
+| `type` | `candidate`(모델이 낸 후보) / `added`(전문의가 후보 밖에서 고른 위치) | 아래 2절 |
+| `label` | `true` / `false` / `unsure`. 후보와 추가 위치 모두 | 성분을 남길지·지울지, 추가 위치를 병변으로 그릴지 |
+| `x_mm`, `y_mm`, `z_mm` | RAS 좌표(Slicer 와 같은 좌표계) | 추가 위치 |
 | `is_index`, `memo` | index lesion 여부, 부위 메모 | 평가·보고 |
-| `llm_verdict`, `llm_agree` | LLM 의견과 그에 대한 전문의 동의 | 학습에는 쓰지 않음(LLM 평가용) |
+| `llm_verdict`, `llm_confidence`, `llm_model` | LLM 참고 의견 | 학습에는 쓰지 않음(`label` 과 비교하는 LLM 평가용) |
 
 CSV 는 표 파일이라 저장소에 올리지 않는다(`.gitignore`). 워크스테이션 `~/autopet3/labels/` 에 둔다([데이터 거버넌스](../data-governance.md) §2).
 
@@ -25,14 +25,17 @@ nnU-Net 미세조정에는 복셀 단위 정답 마스크가 필요하다. CSV �
 | 참 후보 | 모델 마스크의 그 성분을 그대로 둔다 | 가능(`case` + `record_no`) |
 | 거짓 후보 | 그 성분을 지운다 | 가능 |
 | 불확실 후보 | 학습에서 빼거나 손실 계산에서 무시하는 영역으로 둔다 | 가능 |
-| 누락 병변 | CSV 에는 점 좌표만 있다. 그 위치의 병변 윤곽을 Slicer 에서 직접 그린다 | 수작업 |
+| 추가 위치 참(누락 병변) | CSV 에는 점 좌표만 있다. 점 근처 SUV 꼭짓점에서 배경 보정 50%(EANM 2015 A50 방식) 초안을 만들고, Slicer 에서 윤곽을 확인하기 전까지 정답 마스크에는 무시(2)로 둔다 | 초안 자동, 확인 수작업 |
+| 추가 위치 거짓 | 마스크는 그대로(배경). 모델이 그 자리를 잘못 잡는지 평가할 때 쓴다 | 가능 |
+| 추가 위치 불확실 | 점 주변을 손실 계산에서 무시하는 영역으로 둔다 | 가능 |
 | 참이지만 윤곽이 틀린 후보 | Slicer 에서 윤곽을 고친다 | 수작업 |
 
 ## 3. 순서
 
 1. 판정 데이터를 모은다. 2명으로 가중치를 바꾸면 과적합만 된다. 최소 수십 명 단위가 필요하다.
    학습용과 평가용 환자를 처음부터 나누고, 평가용은 학습에 절대 넣지 않는다.
-2. CSV → 정답 마스크 변환(2절의 자동 부분). 판정 CSV 가 몇 개 쌓이면 연결 스크립트로 만든다(사용자 승인 후).
+2. CSV → 정답 마스크 변환(2절의 자동 부분): `scripts/labels_from_review.py` → `~/autopet3/labels/masks/<case>.nii.gz`(0 배경·1 병변·2 무시), `<case>_added.nii.gz`(추가 참 초안, A 번호).
+   고정 SUVmax 41% 는 골수종 병변(꼭짓점 SUV 2–3, 배경 0.7–1.2)에서 골수로 새어 85–245 mL 가 되어 쓰지 않는다(2026-10-29 P01·P02 확인).
 3. 누락 병변과 윤곽 수정은 Slicer 에서 그린다. 결과는 `labelsTr` 형식 NIfTI 로 저장한다(저장소 밖).
 4. nnU-Net 데이터셋 구성: `imagesTr/<case>_0000.nii.gz`(CTres), `<case>_0001.nii.gz`(SUV), `labelsTr/<case>.nii.gz`, `dataset.json`.
    입력은 추론 때와 똑같이 TCIA_processing 변환(SeriesTime 기준 SUV, `--suv-time series`)을 쓴다.

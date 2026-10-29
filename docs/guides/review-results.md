@@ -20,11 +20,11 @@ cd ~/PET-CT && python scripts/summarize_lesions.py P01 P02 --input ~/autopet3/in
 
 | 화면 | 내용 |
 |---|---|
-| 관상면 MIP | 후보 번호. 누락 병변 추가 모드에서 클릭하면 그 점의 가장 뜨거운 깊이를 기록한다 |
-| 3D 보기(3D Slicer) | Slicer 여는 법 안내와 "Slicer 에서 찍은 점 불러오기"(파일 선택 → 누락 병변 목록에 합침). 페이지 안에는 3D 영상을 넣지 않는다(§2-2) |
+| 관상면 MIP | 후보 번호. 추가 모드에서 클릭하면 그 점의 가장 뜨거운 깊이를 3번 목록에 넣는다 |
+| 3D 보기(3D Slicer) | Slicer 여는 법 안내와 "Slicer 에서 찍은 점 불러오기"(파일 선택 → 3번 추가 위치 목록에 합침). 페이지 안에는 3D 영상을 넣지 않는다(§2-2) |
 | 후보 카드 | PET 축상·관상·시상 + CT 축상, SUVmax·SUVpeak·SUVmean·부피·HU, 위치(구조 이름)·간/혈액풀 대비·규칙 DS(`--totalseg`) |
-| 판정 | 참/거짓/불확실, index lesion, 메모, 놓친 병변 추가(MIP 클릭 또는 Slicer 에서 찍은 점), CSV 내려받기 |
-| LLM 의견 | 6분류 판정·확신도·근거(`--llm-opinion`), "맞다/아니다" |
+| 판정 | 후보마다 참/거짓/불확실, index lesion, 메모. 후보 밖 추가 위치(MIP 클릭 또는 Slicer 점)도 줄마다 참/거짓/불확실·부위 메모·지우기. CSV 저장(저장 창) |
+| LLM 의견 | 6분류 판정·확신도·근거(`--llm-opinion`). 참고용으로만 보여 주고 동의 여부는 받지 않는다(2026-10-29) |
 
 옵션에 따라 채워지는 칸이 다르다.
 
@@ -53,8 +53,8 @@ DST="$HOME/Library/CloudStorage/Dropbox/Work/PIPET/과제/혈액내과/PET-MRD/a
 rsync -av "${WS}:autopet3/review/" "$DST/" && chmod -R go-rwx "$DST"
 open -a "Google Chrome" "$DST/P01_후보확인.html"                     # Finder 에서 HTML 을 더블클릭해도 된다(서버 필요 없음)
 # 판정이 끝나면 "Slicer 에서 찍은 점 불러오기"로 $DST/<case>_viewer/slicer_points.csv 를 합친 뒤
-# "결과 CSV 내려받기" → FL_labels_<case>.csv 를 $DST 에 저장한다
-# (Chrome 설정 > 다운로드 > "다운로드 전에 각 파일의 저장 위치 확인" 을 켜 두면 바로 $DST 에 저장할 수 있다)
+# "결과 CSV 저장" → 저장 창에서 $DST 를 골라 FL_labels_<case>.csv 로 저장한다
+# (처음 한 번만 Cmd+Shift+G 로 $DST 를 고르면 다음부터 저장 창이 그 폴더에서 열린다)
 
 # 워크스테이션으로 보내기(맥 → 워크스테이션 한 방향)
 ssh "$WS" 'mkdir -p ~/autopet3/labels && chmod 700 ~/autopet3/labels'
@@ -67,7 +67,11 @@ rsync -av "$DST"/FL_labels_*.csv "${WS}:autopet3/labels/" && ssh "$WS" 'chmod 60
 - 후보 번호(SUVmax 순)가 바뀐 새 HTML 을 받으면 이전 판정이 다른 카드에 붙는다. 진행 표시를 먼저 보고, 필요하면 CSV 를 받아 둔 뒤 "판정 모두 지우기".
 - rsync 에 `--delete` 를 쓰지 않는다(맥 쪽 CSV 를 지우지 않도록).
 - 맥에서 판독하면 CSV 를 판독 폴더(`$DST`)에 저장한다(Downloads 에 남기지 않는다).
-- CSV 좌표는 RAS mm(Slicer 와 같은 좌표계)다. 놓친 병변은 MIP 를 클릭하면 그 점의 최대 SUV 깊이로(`source=mip`), Slicer 에서 찍으면 그 점으로(`source=slicer`, 메모에 구조 이름) x·y·z 가 모두 남는다.
+  "결과 CSV 저장" 은 Chrome 저장 창(File System Access)을 띄워 지난번 폴더에서 연다. 판정하지 않은 후보가 있으면 저장 전에 묻는다.
+  저장 창을 못 쓰는 브라우저에서는 예전처럼 다운로드 폴더로 받으므로 `$DST` 로 옮긴다.
+- CSV 좌표는 RAS mm(Slicer 와 같은 좌표계)다. 후보 밖 추가 위치는 MIP 를 클릭하면 그 점의 최대 SUV 깊이로(`source=mip`), Slicer 에서 찍으면 그 점으로(`source=slicer`, 메모에 구조 이름) x·y·z 가 모두 남는다.
+  추가 위치도 `label` 에 참/거짓/불확실을 고른다(병변이 아닌 곳을 찍었으면 거짓). 메모는 부위만 적는다.
+- 브라우저 저장 키는 2026-10-29 부터 `fl-review-v2:<case>` 다. 그 전 판정은 새 페이지에 보이지 않는다(처음부터 다시 판정).
 
 ### 2-2. 맥 3D Slicer 로 3D 판독
 
@@ -80,7 +84,7 @@ Slicer 는 `<case>_viewer/open_in_slicer.py` 를 실행해 CT 바탕에 SUV(PET-
 |---|---|
 | 후보 위치로 가기 | Slicer 의 Markups 모듈 "후보" 목록에서 번호를 누른다(처음에는 후보 1 위치로 열린다) |
 | 누락 병변 찍기 | 도구막대 "PET-CT 판독" 의 "누락 병변 찍기 (P)" 를 켜고 단면을 클릭한다(Slicer 기본 점 찍기 버튼으로 찍어도 같은 목록). 찍기·옮기기·지우기마다 `<case>_viewer/slicer_points.csv`(case·RAS mm·구조 이름)에 쓰고 Python 콘솔에 `[PET-CT] … 저장` 을 찍는다. 다시 열면 이어서 보인다 |
-| 페이지로 가져오기 | 페이지의 "Slicer 에서 찍은 점 불러오기" → `<case>_viewer/slicer_points.csv` 를 고른다 → 3번 누락 병변 목록에 합쳐지고 결과 CSV 에 `source=slicer` 로 남는다. 점 파일의 `case` 가 페이지 케이스와 다르면 받지 않는다 |
+| 페이지로 가져오기 | 페이지의 "Slicer 에서 찍은 점 불러오기" → `<case>_viewer/slicer_points.csv` 를 고른다 → 3번 추가 위치 목록에 합쳐지고, 줄마다 참/거짓/불확실을 고른다(결과 CSV 에 `source=slicer`). 다시 불러와도 같은 좌표 점의 판정은 남는다. 점 파일의 `case` 가 페이지 케이스와 다르면 받지 않는다 |
 | 구조 이름·색 | 마우스를 올리면 아래 Data Probe 칸에 구조 이름이 나온다(색을 숨겨도 나온다). 색은 도구막대 "구조 색 (L)" 로 켜고 끈다 |
 | 3D 보기 | 오른쪽 위 칸을 마우스로 끌어 돌린다. 단면 세 칸은 3D 볼륨을 세 방향으로 자른 면이다 |
 
