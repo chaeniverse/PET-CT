@@ -9,7 +9,7 @@
 | 실행 환경 | [environment.md](environment.md) | 워크스테이션 사양, GPU·PyTorch 주의점 |
 | 원자료 | [data/index.md](data/index.md) | 가명 환자별 시리즈 구성·변환 시 주의점 |
 | 모델 | [models/index.md](models/index.md) | 비교 대상 모델과 진행 상태 |
-| 방법 | [methods/autopet3-pipeline.md](methods/autopet3-pipeline.md) · [methods/finetune-from-review.md](methods/finetune-from-review.md) · [methods/llm-assist.md](methods/llm-assist.md) | 입력 구성·전처리·시리즈 선택 이유·5-fold 앙상블·코드와 문헌 · 판정 CSV 로 미세조정하는 계획 · LLM 보조 의견 틀과 확장 계획 |
+| 방법 | [methods/autopet3-pipeline.md](methods/autopet3-pipeline.md) · [methods/finetune-from-review.md](methods/finetune-from-review.md) · [methods/llm-assist.md](methods/llm-assist.md) · [methods/preprocessing-literature.md](methods/preprocessing-literature.md) | 입력 구성·전처리·시리즈 선택 이유·5-fold 앙상블·코드와 문헌 · 판정 CSV 로 미세조정하는 계획 · LLM 보조 의견 틀과 확장 계획 · SUV 기준 시각 근거와 전처리·정규화 문헌 검색 키워드 |
 | 실험 | `experiments/` (워크스테이션 로컬 전용, 깃허브에 없음) | 실험별 설정·수치 결과·관찰 |
 | 가이드 | [guides/dicom-to-nifti.md](guides/dicom-to-nifti.md) · [guides/autopet3-inference.md](guides/autopet3-inference.md) · [guides/review-results.md](guides/review-results.md) · [guides/totalsegmentator.md](guides/totalsegmentator.md) · [guides/medgemma.md](guides/medgemma.md) · [guides/git-workflow.md](guides/git-workflow.md) | DICOM → NIfTI 변환, autoPET III 환경·추론, 결과 수치 요약·후보 확인 페이지·맥 판독, CT 장기·골격 분할, 후보 소견용 로컬 VLM(MedGemma·vLLM), 브랜치·커밋·PR |
 

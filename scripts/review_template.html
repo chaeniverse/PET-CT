@@ -26,7 +26,6 @@ main{display:grid;grid-template-columns:600px 1fr;gap:20px;padding:20px 24px;max
 .llm{border-left:3px solid #7F7F7F;background:#F7F7F7;padding:8px 10px;font-size:12.5px;line-height:1.6}
 .llm b{color:#404040}
 .llm.none,.llm.wait{color:#7F7F7F}
-.llm .q{margin-top:6px;font-weight:bold;color:#1F3864}
 .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .btns button{padding:6px 12px;border:1px solid #7F7F7F;background:#fff;cursor:pointer;font-size:13px;border-radius:3px}
 .btns button.on{background:#1F3864;color:#fff;border-color:#1F3864}
@@ -58,7 +57,7 @@ td{border-bottom:1px solid #ddd;padding:4px 6px}
 <div class="left">
  <div class="panel"><h2>1. 관상면 MIP와 후보 번호</h2>
   <div id="mipwrap"><img id="mip" alt="coronal MIP"></div>
-  <p class="small">환자 오른쪽이 화면 왼쪽. 3번에서 "누락 병변 추가"를 켜면 클릭한 위치(x, y, z mm)를 기록한다.</p>
+  <p class="small">환자 오른쪽이 화면 왼쪽. 3번에서 "추가 모드"를 켜면 클릭한 위치(x, y, z mm)를 3번 목록에 넣는다.</p>
  </div>
  <div class="panel" id="slicerpanel"><h2>2. 3D 보기 (3D Slicer)</h2>
   <div class="btns"><a class="btn" href="petreview://slicer/__CASE__">Slicer 로 보기</a><button onclick="pickSlicerPoints()">Slicer 에서 찍은 점 불러오기</button><input type="file" id="slicer-file" accept=".csv" style="display:none" onchange="loadSlicerPoints(this)"></div>
@@ -66,16 +65,18 @@ td{border-bottom:1px solid #ddd;padding:4px 6px}
   <p class="small">"Slicer 로 보기" 는 맥에 PetReview 연결 앱을 한 번 만들어 두면 동작한다(결과 확인 가이드 §2-2). 처음 누를 때 Chrome 이 "PetReview.app 을 열까요?" 를 묻는다.
   연결 앱이 없으면 맥 터미널에서 <code>petreview.sh slicer __CASE__</code> 를 실행한다. 같은 케이스 Slicer 가 이미 열려 있으면 새로 열지 않는다.
   Slicer 에는 CT·SUV·병변(빨강)·후보 번호(남색 점, <code>카드 번호 (#기록)</code>)가 4분할로, 3D 칸에는 SUV MIP 가 열린다. 도구막대 "누락 병변 찍기 (P)" 로 점 찍기를 켜고 끄고, "구조 색 (L)" 로 구조 라벨 색을 켜고 끈다.
-  찍은 점은 <code>__CASE___viewer/slicer_points.csv</code> 에 바로 써진다(Slicer 콘솔에 "[PET-CT] … 저장"). 위 버튼으로 그 파일을 고르면 3번 목록에 합쳐져 CSV 에 source=slicer 로 남는다.
+  찍은 점은 <code>__CASE___viewer/slicer_points.csv</code> 에 바로 써진다(Slicer 콘솔에 "[PET-CT] … 저장"). 위 버튼으로 그 파일을 고르면 3번 목록에 합쳐지고, 거기서 참 / 거짓 / 불확실을 고른다(CSV 에 source=slicer).
   후보 위치로 가려면 Slicer 의 Markups 모듈 "후보" 목록에서 번호를 누른다.</p>
  </div>
- <div class="panel"><h2>3. 누락 병변 추가</h2>
-  <div class="btns"><button id="addmode" onclick="toggleAdd()">누락 병변 추가 모드: 꺼짐</button><button onclick="clearAdded()">추가 목록 지우기</button></div>
-  <table style="margin-top:8px"><thead><tr><th>#</th><th>x</th><th>y</th><th>z (mm)</th><th>메모</th><th></th></tr></thead><tbody id="added"></tbody></table>
+ <div class="panel"><h2>3. 후보 밖 추가 위치 <span class="small" id="progress-added"></span></h2>
+  <p class="small">모델 후보 말고 직접 고른 곳이다(MIP 클릭 또는 Slicer 점). 각 줄에 참 / 거짓 / 불확실을 고른다. 메모는 부위만 적는다.</p>
+  <div class="btns"><button id="addmode" onclick="toggleAdd()">추가 모드: 꺼짐</button><button onclick="clearAdded()">추가 목록 모두 지우기</button></div>
+  <table style="margin-top:8px"><thead><tr><th>#</th><th>x</th><th>y</th><th>z (mm)</th><th>판정</th><th>메모</th><th></th></tr></thead><tbody id="added"></tbody></table>
  </div>
  <div class="panel"><h2>4. 저장</h2>
-  <p class="small">판정은 이 브라우저에 자동 저장된다(같은 주소로 다시 열면 이어서 할 수 있음). 끝나면 CSV로 내려받는다.</p>
-  <div class="toolbar"><button onclick="exportCSV()">결과 CSV 내려받기</button><button class="sec" onclick="showPreview()">미리보기</button><button class="sec" onclick="resetAll()">판정 모두 지우기</button></div>
+  <p class="small">판정은 이 브라우저에 자동 저장된다(같은 주소로 다시 열면 이어서 할 수 있음). 끝나면 CSV 로 저장한다.
+  저장 창이 뜨면 처음 한 번만 판독 폴더(autopet_review)로 가서 저장한다. 다음부터는 그 폴더에서 열린다.</p>
+  <div class="toolbar"><button onclick="exportCSV()">결과 CSV 저장</button><button class="sec" onclick="showPreview()">미리보기</button><button class="sec" onclick="resetAll()">판정 모두 지우기</button></div>
   <pre id="preview" class="small" style="white-space:pre-wrap"></pre>
  </div>
 </div>
@@ -88,9 +89,9 @@ td{border-bottom:1px solid #ddd;padding:4px 6px}
 const DATA = /*__DATA__*/null;
 window.DATA = DATA;
 const cards = DATA.cards, M = DATA.mip;
-const KEY = 'fl-review:' + DATA.case;
+const KEY = 'fl-review-v2:' + DATA.case;    // 2026-10-29 판정 형식을 바꾸며 새 키로 처음부터 시작한다(v1 판정은 쓰지 않음)
 const VERD = {focal_lesion: '국소 골병변', diffuse: '미만성 골수 섭취', extramedullary: '골수외 병변', physiologic: '생리적 섭취', false_positive: '위양성 (염증·골절 등)', unsure: '불확실'};
-let state = {labels: {}, index: null, added: [], reader: '', memo: {}, llmAgree: {}, hideLlm: true};
+let state = {labels: {}, index: null, added: [], reader: '', memo: {}, hideLlm: true};
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) state = Object.assign(state, s); } catch (e) {}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
@@ -121,12 +122,11 @@ function llmBox(c) {
   const op = c.llm;
   if (!op) return `<div class="llm none"><b>LLM 의견</b><br>아직 없음</div>`;
   if (state.hideLlm && !state.labels[c.id]) return `<div class="llm wait"><b>LLM 의견</b><br>내 판정을 먼저 고르면 보인다</div>`;
-  const ag = state.llmAgree[c.id] || '', m = DATA.llm_meta || {};
+  const m = DATA.llm_meta || {};
   return `<div class="llm"><b>LLM 의견</b> <span class="small">${esc(m.model || '')}</span><br>
     판단: <b>${VERD[op.verdict] || esc(op.verdict)}</b>${op.confidence != null ? ` · 확신 ${op.confidence}` : ''}<br>
     <span class="small">${esc(op.rationale || '')}</span>
-    <div class="q">LLM은 이렇게 판단했습니다. 맞습니까?</div>
-    <div class="btns"><button class="small ${ag === 'agree' ? 'on' : ''}" onclick="setAgree(${c.id},'agree')">맞다</button><button class="small ${ag === 'disagree' ? 'on' : ''}" onclick="setAgree(${c.id},'disagree')">아니다</button></div></div>`;
+    <div class="small" style="margin-top:6px">참고용 의견이다. 판정은 왼쪽 참 / 거짓 / 불확실로 한다.</div></div>`;
 }
 
 function render() {
@@ -160,7 +160,6 @@ function render() {
 function setLab(id, v) { state.labels[id] = (state.labels[id] === v) ? '' : v; save(); render(); }
 function setIndex(id) { state.index = (state.index === id) ? null : id; save(); render(); }
 function setMemo(id, v) { state.memo[id] = v; save(); }
-function setAgree(id, v) { state.llmAgree[id] = (state.llmAgree[id] === v) ? '' : v; save(); render(); }
 function hl(id, on) {
   document.getElementById('card' + id).classList.toggle('hl', on);
   const m = document.getElementById('cand' + id); if (m) m.classList.toggle('hl', on);
@@ -183,9 +182,11 @@ function loadSlicerPoints(input) {
     const other = rows.find(r => r[0] !== DATA.case);
     if (other) { smsg.textContent = `${other[0]} 의 점 파일이다. ${DATA.case}_viewer/slicer_points.csv 를 고른다(목록은 그대로 둠).`; return; }
     if (!rows.length) { smsg.textContent = '파일에 점이 없다(목록은 그대로 둠).'; return; }
-    const pts = rows.map(([, , x, y, z, st]) => ({x: +x, y: +y, z: +z, memo: st ? 'Slicer: ' + st : 'Slicer', source: 'slicer'}));
+    // 다시 불러와도 같은 좌표 점의 판정·메모는 이어받는다(Slicer 에서 옮긴 점은 새 점으로 본다)
+    const old = new Map(state.added.filter(a => a.source === 'slicer').map(a => [`${a.x},${a.y},${a.z}`, a]));
+    const pts = rows.map(([, , x, y, z, st]) => old.get(`${+x},${+y},${+z}`) || {x: +x, y: +y, z: +z, memo: st && st !== 'unlabeled' ? st : '', label: '', source: 'slicer'});
     state.added = state.added.filter(a => a.source !== 'slicer').concat(pts); save(); drawMarks();
-    smsg.textContent = `Slicer 점 ${pts.length}개를 3번 목록에 합쳤다(이전에 불러온 Slicer 점은 바꿔 넣음).`;
+    smsg.textContent = `Slicer 점 ${pts.length}개를 3번 목록에 합쳤다(이전에 불러온 Slicer 점은 바꿔 넣고, 같은 좌표의 판정은 이어받음).`;
   };
   reader.readAsText(file);
   input.value = '';    // 같은 파일을 다시 골라도 읽히게
@@ -206,20 +207,25 @@ function drawMarks() {
       const d = document.createElement('div'); d.className = 'dot';
       d.style.left = (a.fx * 100) + '%'; d.style.top = (a.fy * 100) + '%'; wrap.appendChild(d);
     }
-    tb.insertAdjacentHTML('beforeend', `<tr><td>A${i + 1}</td><td>${a.x}</td><td>${a.y ?? ''}</td><td>${a.z}</td><td>${esc(a.memo)}</td><td></td></tr>`);
+    const b = (v, t) => `<button class="small ${a.label === v ? 'on' : ''}" onclick="setAddedLab(${i},'${v}')">${t}</button>`;
+    tb.insertAdjacentHTML('beforeend', `<tr><td>A${i + 1}</td><td>${a.x}</td><td>${a.y ?? ''}</td><td>${a.z}</td>
+      <td><div class="btns" style="margin:0;flex-wrap:nowrap">${b('true', '참')}${b('false', '거짓')}${b('unsure', '불확실')}</div></td>
+      <td><input class="memo" style="margin:0" placeholder="부위" value="${esc(a.memo || '')}" oninput="state.added[${i}].memo=this.value;save()"></td>
+      <td><button class="small" onclick="delAdded(${i})" title="이 줄 지우기">지우기</button></td></tr>`);
   });
+  document.getElementById('progress-added').textContent = state.added.length ? `${state.added.filter(a => a.label).length} / ${state.added.length} 판정` : '';
 }
+function setAddedLab(i, v) { const a = state.added[i]; a.label = (a.label === v) ? '' : v; save(); drawMarks(); }
+function delAdded(i) { state.added.splice(i, 1); save(); drawMarks(); }
 
 let addMode = false;
 function toggleAdd() {
   addMode = !addMode;
-  document.getElementById('addmode').textContent = '누락 병변 추가 모드: ' + (addMode ? '켜짐 (MIP 클릭)' : '꺼짐');
+  document.getElementById('addmode').textContent = '추가 모드: ' + (addMode ? '켜짐 (MIP 클릭)' : '꺼짐');
   document.getElementById('mipwrap').classList.toggle('adding', addMode);
 }
 function addLesion(mm, extra) {
-  const memo = prompt('병변 메모 (예: Lt 7th rib)');
-  if (memo === null) return;
-  state.added.push(Object.assign({x: r1(mm[0]), y: r1(mm[1]), z: r1(mm[2]), memo}, extra)); save(); drawMarks();
+  state.added.push(Object.assign({x: r1(mm[0]), y: r1(mm[1]), z: r1(mm[2]), memo: '', label: ''}, extra)); save(); drawMarks();
 }
 document.getElementById('mip').addEventListener('click', e => {
   const r = e.target.getBoundingClientRect();
@@ -227,26 +233,41 @@ document.getElementById('mip').addEventListener('click', e => {
   const mm = mipToMM(f.fx, f.fy);
   if (addMode) addLesion(mm, Object.assign(f, {source: 'mip'}));
 });
-function clearAdded() { state.added = []; save(); drawMarks(); }
+function clearAdded() { if (state.added.length && !confirm('추가 위치를 모두 지운다. 계속할까?')) return; state.added = []; save(); drawMarks(); }
 function resetAll() {
-  if (!confirm('이 케이스의 판정·메모·index·LLM 동의·누락 병변을 모두 지운다. 계속할까?')) return;
-  state = {labels: {}, index: null, added: [], reader: state.reader, memo: {}, llmAgree: {}, hideLlm: state.hideLlm}; save(); render();
+  if (!confirm('이 케이스의 판정·메모·index·추가 위치를 모두 지운다. 계속할까?')) return;
+  state = {labels: {}, index: null, added: [], reader: state.reader, memo: {}, hideLlm: state.hideLlm}; save(); render();
 }
 
 function rows() {
   const pid = document.getElementById('pid').value, r = rd.value, t = new Date().toISOString(), lm = (DATA.llm_meta || {}).model || '';
   const out = [['research_id', 'reader', 'type', 'candidate_id', 'record_no', 'x_mm', 'y_mm', 'z_mm', 'suvmax', 'suvpeak', 'vol_ml', 'ct_hu',
-    'label', 'is_index', 'memo', 'llm_verdict', 'llm_confidence', 'llm_agree', 'llm_model', 'source', 'model', 'timestamp']];
+    'label', 'is_index', 'memo', 'llm_verdict', 'llm_confidence', 'llm_model', 'source', 'model', 'timestamp']];
   cards.forEach(c => out.push([pid, r, 'candidate', c.id, c.record_no, c.mm[0], c.mm[1], c.mm[2], c.suvmax, c.suvpeak, c.vol, c.hu,
     state.labels[c.id] || '', state.index === c.id ? 1 : 0, state.memo[c.id] || '',
-    c.llm ? c.llm.verdict : '', c.llm && c.llm.confidence != null ? c.llm.confidence : '', state.llmAgree[c.id] || '', c.llm ? lm : '', 'model_mask', DATA.model, t]));
-  state.added.forEach((a, i) => out.push([pid, r, 'added', `A${i + 1}`, '', a.x, a.y ?? '', a.z, '', '', '', '', 'true', 0, a.memo, '', '', '', '', a.source || 'mip', DATA.model, t]));
+    c.llm ? c.llm.verdict : '', c.llm && c.llm.confidence != null ? c.llm.confidence : '', c.llm ? lm : '', 'model_mask', DATA.model, t]));
+  state.added.forEach((a, i) => out.push([pid, r, 'added', `A${i + 1}`, '', a.x, a.y ?? '', a.z, '', '', '', '', a.label || '', 0, a.memo || '', '', '', '', a.source || 'mip', DATA.model, t]));
   return out;
 }
-function exportCSV() {
+// 저장 창(Chrome File System Access)으로 판독 폴더에 바로 저장한다. id 가 같으면 Chrome 이 지난번 폴더에서 창을 연다.
+// 저장 창을 못 쓰는 브라우저는 예전처럼 다운로드 폴더로 받는다
+async function exportCSV() {
+  const left = cards.filter(c => !state.labels[c.id]).length, leftA = state.added.filter(a => !a.label).length;
+  if ((left || leftA) && !confirm(`판정하지 않은 곳이 있다(참/거짓/불확실): 후보 ${left}개, 추가 위치 ${leftA}개. 그대로 저장할까?`)) return;
   const csv = rows().map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const b = new Blob(['\ufeff' + csv], {type: 'text/csv'}), a = document.createElement('a');
-  a.href = URL.createObjectURL(b); a.download = 'FL_labels_' + document.getElementById('pid').value.split(' ')[0] + '.csv'; a.click();
+  const b = new Blob(['\ufeff' + csv], {type: 'text/csv'}), name = 'FL_labels_' + document.getElementById('pid').value.split(' ')[0] + '.csv';
+  const msg = document.getElementById('preview');
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await showSaveFilePicker({id: 'autopet-review', suggestedName: name, types: [{description: 'CSV', accept: {'text/csv': ['.csv']}}]});
+      const w = await h.createWritable(); await w.write(b); await w.close();
+      msg.textContent = `${h.name} 로 저장했다.`; return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;     // 저장 창에서 취소
+      msg.textContent = '저장 창을 쓰지 못해 다운로드 폴더로 받는다: ' + e.message;
+    }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click();
 }
 function showPreview() { document.getElementById('preview').textContent = rows().map(r => r.join(' | ')).join('\n'); }
 render();
